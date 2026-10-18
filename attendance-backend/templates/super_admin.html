@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block title %}Super Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="super-admin-page">
+
+    <!-- HERO -->
+    <div class="sa-hero">
+        <div class="sa-hero-content">
+            <div class="sa-hero-text">
+                <h1>
+                    <i class="fas fa-crown"></i>
+                    Welcome back, {{ full_name }}
+                </h1>
+                <p>You control all businesses registered on Dutipay</p>
+            </div>
+            <div class="sa-hero-actions">
+                <a href="/super-admin/registrations" class="sa-hero-btn primary">
+                    <i class="fas fa-clipboard-check"></i>
+                    Review Requests
+                </a>
+                <a href="/super-admin/businesses" class="sa-hero-btn">
+                    <i class="fas fa-building"></i>
+                    All Businesses
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="sa-stats">
+        <div class="sa-stat" onclick="window.location.href='/super-admin/businesses'">
+            <div class="sa-stat-icon green"><i class="fas fa-building"></i></div>
+            <div class="sa-stat-label">Total Businesses</div>
+            <div class="sa-stat-number" id="statTotalBiz">0</div>
+            <div class="sa-stat-trend positive">
+                <i class="fas fa-check-circle"></i> All registered
+            </div>
+        </div>
+
+        <div class="sa-stat gold" onclick="window.location.href='/super-admin/registrations'">
+            <div class="sa-stat-icon gold"><i class="fas fa-clock"></i></div>
+            <div class="sa-stat-label">Pending Review</div>
+            <div class="sa-stat-number" id="statPending">0</div>
+            <div class="sa-stat-trend warning">
+                <i class="fas fa-exclamation-circle"></i> Needs action
+            </div>
+        </div>
+
+        <div class="sa-stat terra">
+            <div class="sa-stat-icon terra"><i class="fas fa-users"></i></div>
+            <div class="sa-stat-label">Total Users</div>
+            <div class="sa-stat-number" id="statUsers">0</div>
+            <div class="sa-stat-trend">
+                <i class="fas fa-user-check"></i> All accounts
+            </div>
+        </div>
+    </div>
+
+    <!-- PENDING REGISTRATIONS -->
+    <div class="sa-card">
+        <div class="sa-card-header">
+            <h3 class="sa-card-title">
+                <span class="sa-card-title-icon"><i class="fas fa-hourglass-half"></i></span>
+                Pending Business Registrations
+            </h3>
+            <a href="/super-admin/registrations" class="sa-btn sa-btn-ghost sa-btn-sm">
+                <i class="fas fa-eye"></i> View All
+            </a>
+        </div>
+        <div class="sa-card-body">
+            <div id="pendingPreview">
+                <div class="sa-empty">
+                    <div class="sa-empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT BUSINESSES -->
+    <div class="sa-card">
+        <div class="sa-card-header">
+            <h3 class="sa-card-title">
+                <span class="sa-card-title-icon"><i class="fas fa-building"></i></span>
+                Recent Businesses
+            </h3>
+            <a href="/super-admin/businesses" class="sa-btn sa-btn-ghost sa-btn-sm">
+                <i class="fas fa-eye"></i> View All
+            </a>
+        </div>
+        <div class="sa-card-body">
+            <div id="businessesPreview">
+                <div class="sa-empty">
+                    <div class="sa-empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ USER FEEDBACKS -->
+    <div class="sa-card">
+        <div class="sa-card-header" style="flex-direction: column; align-items: flex-start; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <h3 class="sa-card-title">
+                    <span class="sa-card-title-icon" style="background: linear-gradient(135deg, #e9c46a, #d4a017);"><i class="fas fa-star"></i></span>
+                    User Feedback & Ratings
+                </h3>
+                <span class="badge badge-info" id="feedbackTotalCount">0 reviews</span>
+            </div>
+
+            <!-- ✅ FILTER & SORT CONTROLS -->
+            <div style="display: flex; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+                
+                <!-- Star Filters -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="sa-btn sa-btn-sm filter-star active" data-star="all" onclick="setFeedbackFilter('all')">All</button>
+                    <button class="sa-btn sa-btn-sm sa-btn-ghost filter-star" data-star="5" onclick="setFeedbackFilter(5)">5 <i class="fas fa-star" style="color: #e9c46a; font-size: 10px;"></i></button>
+                    <button class="sa-btn sa-btn-sm sa-btn-ghost filter-star" data-star="4" onclick="setFeedbackFilter(4)">4 <i class="fas fa-star" style="color: #e9c46a; font-size: 10px;"></i></button>
+                    <button class="sa-btn sa-btn-sm sa-btn-ghost filter-star" data-star="3" onclick="setFeedbackFilter(3)">3 <i class="fas fa-star" style="color: #e9c46a; font-size: 10px;"></i></button>
+                    <button class="sa-btn sa-btn-sm sa-btn-ghost filter-star" data-star="2" onclick="setFeedbackFilter(2)">2 <i class="fas fa-star" style="color: #e9c46a; font-size: 10px;"></i></button>
+                    <button class="sa-btn sa-btn-sm sa-btn-ghost filter-star" data-star="1" onclick="setFeedbackFilter(1)">1 <i class="fas fa-star" style="color: #e9c46a; font-size: 10px;"></i></button>
+                </div>
+
+                <!-- Sort Dropdown -->
+                <select id="feedbackSort" onchange="setFeedbackFilter(currentStarFilter)" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; cursor: pointer;">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="highest">Highest Rating</option>
+                    <option value="lowest">Lowest Rating</option>
+                </select>
+            </div>
+        </div>
+        <div class="sa-card-body">
+            <div id="feedbacksPreview">
+                <div class="sa-empty">
+                    <div class="sa-empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                    <p>Loading feedbacks...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ✅ FEEDBACK MODAL (UX Rating) -->
+<div id="feedbackModal" class="modal" style="display: none; z-index: 10500;">
+    <div class="modal-content" style="max-width: 480px; text-align: center; border-top: 5px solid var(--accent-yellow); border-radius: 24px;">
+        <div style="padding: 32px 24px;">
+            <div style="font-size: 56px; margin-bottom: 12px;">🌟</div>
+            <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">How are we doing?</h2>
+            <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+                You've been using Dutipay for a while now. We'd love to hear your thoughts to help us improve!
+            </p>
+            <div id="starRating" style="display: flex; justify-content: center; gap: 8px; font-size: 40px; cursor: pointer; margin-bottom: 20px; color: #e0e0e0;">
+                <i class="fas fa-star" data-rating="1"></i>
+                <i class="fas fa-star" data-rating="2"></i>
+                <i class="fas fa-star" data-rating="3"></i>
+                <i class="fas fa-star" data-rating="4"></i>
+                <i class="fas fa-star" data-rating="5"></i>
+            </div>
+            <div id="feedbackTextContainer" style="display: none; margin-bottom: 20px;">
+                <textarea id="feedbackText" rows="3" placeholder="Tell us what you love or what we can improve..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; background: var(--bg-secondary); color: var(--text-primary); resize: vertical;"></textarea>
+            </div>
+            <div id="feedbackActions" style="display: none; gap: 12px; justify-content: center;">
+                <button class="btn btn-secondary" onclick="dismissFeedback()" style="flex: 1;">Maybe Later</button>
+                <button class="btn btn-primary" onclick="submitFeedback(event)" style="flex: 1;"><i class="fas fa-paper-plane"></i> Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ ADMIN REPLY MODAL -->
+<div id="replyModal" class="modal" style="display: none; z-index: 10600;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-reply" style="color: var(--primary);"></i> Reply to Feedback</h3>
+            <button class="modal-close" onclick="closeReplyModal()">&times;</button>
+        </div>
+        <form onsubmit="submitReply(event)">
+            <input type="hidden" id="replyFeedbackId">
+            <div style="padding: 24px;">
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                    Replying to: <strong id="replyUsername" style="color: var(--text-primary);"></strong>
+                </p>
+                <div class="form-group">
+                    <label>Your Reply / Solution</label>
+                    <textarea id="replyText" rows="4" required placeholder="e.g., If you have a concern regarding this issue, please contact us at support@dutipay.app..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; background: var(--bg-secondary); color: var(--text-primary); resize: vertical;"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions" style="padding: 0 24px 24px;">
+                <button type="button" class="btn btn-secondary" onclick="closeReplyModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="submitReplyBtn">
+                    <i class="fas fa-paper-plane"></i> Send Reply
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let allFeedbacksCache = [];
+let currentStarFilter = 'all';
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function fmtDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}); }
+    catch(e) { return iso; }
+}
+
+// ✅ 1. LOAD DASHBOARD DATA
+async function loadDashboard() {
+    try {
+        const regRes = await fetch('/api/super-admin/business-registrations?status=Pending');
+        const regData = await regRes.json();
+        const pending = regData.data || [];
+        document.getElementById('statPending').textContent = pending.length;
+
+        const preview = document.getElementById('pendingPreview');
+        if (!pending.length) {
+            preview.innerHTML = `<div class="sa-empty"><div class="sa-empty-icon"><i class="fas fa-check-circle"></i></div><h3>All caught up!</h3></div>`;
+        } else {
+            preview.innerHTML = pending.slice(0, 5).map((r, i) => `
+                <div class="sa-list-item" style="animation-delay: ${i * 0.05}s;">
+                    <div class="sa-list-item-info">
+                        <div class="sa-list-item-title">
+                            ${escapeHtml(r.business_name)}
+                            <span class="badge badge-warning">Pending</span>
+                        </div>
+                        <div class="sa-list-item-meta">
+                            <span><i class="fas fa-user"></i>${escapeHtml(r.owner_first_name)} ${escapeHtml(r.owner_last_name)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        const bizRes = await fetch('/api/super-admin/businesses');
+        const bizData = await bizRes.json();
+        const businesses = bizData.data || [];
+        document.getElementById('statTotalBiz').textContent = businesses.length;
+
+        const usersRes = await fetch('/api/super-admin/users-count');
+        const usersData = await usersRes.json();
+        document.getElementById('statUsers').textContent = usersData.count || 0;
+
+        const bizPreview = document.getElementById('businessesPreview');
+        if (!businesses.length) {
+            bizPreview.innerHTML = `<div class="sa-empty"><div class="sa-empty-icon"><i class="fas fa-building"></i></div><h3>No businesses yet</h3></div>`;
+        } else {
+            bizPreview.innerHTML = businesses.slice(0, 5).map((b, i) => `
+                <div class="sa-list-item" style="animation-delay: ${i * 0.05}s;">
+                    <div class="sa-list-item-info">
+                        <div class="sa-list-item-title">
+                            ${escapeHtml(b.display_name || b.farm_name)}
+                            <span class="badge badge-info">${escapeHtml(b.business_code || '—')}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        console.error('Dashboard error:', e);
+    }
+}
+
+// ✅ 2. LOAD FEEDBACKS
+async function loadFeedbacks() {
+    try {
+        const res = await fetch('/api/super-admin/feedbacks');
+        const data = await res.json();
+        
+        const container = document.getElementById('feedbacksPreview');
+        if (!container) return;
+
+        if (!data.success || !data.data || data.data.length === 0) {
+            allFeedbacksCache = [];
+            container.innerHTML = `<div class="sa-empty"><h3>No feedback yet</h3></div>`;
+            document.getElementById('feedbackTotalCount').textContent = '0 reviews';
+            return;
+        }
+
+        allFeedbacksCache = data.data;
+        renderFeedbacks(); // I-render base sa filter at sort
+
+    } catch (e) {
+        console.error('Load feedbacks error:', e);
+    }
+}
+
+// ✅ 3. RENDER FEEDBACKS (With Filter & Sort)
+function renderFeedbacks() {
+    const container = document.getElementById('feedbacksPreview');
+    const sortValue = document.getElementById('feedbackSort').value;
+    let filtered = [...allFeedbacksCache];
+
+    // Filter by Star
+    if (currentStarFilter !== 'all') {
+        filtered = filtered.filter(f => f.rating === parseInt(currentStarFilter));
+    }
+
+    // Sort
+    if (sortValue === 'newest') {
+        filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (sortValue === 'oldest') {
+        filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } else if (sortValue === 'highest') {
+        filtered.sort((a, b) => b.rating - a.rating);
+    } else if (sortValue === 'lowest') {
+        filtered.sort((a, b) => a.rating - b.rating);
+    }
+
+    document.getElementById('feedbackTotalCount').textContent = `${filtered.length} review(s)`;
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div class="sa-empty"><p>No feedbacks match this filter.</p></div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(f => {
+        let starsHtml = '';
+        for (let i = 1; i <= 5; i++) {
+            starsHtml += `<i class="fas fa-star" style="color: ${i <= f.rating ? '#e9c46a' : '#e0e0e0'}; font-size: 14px;"></i>`;
+        }
+
+        const username = f.users?.username || 'Unknown User';
+        const role = f.role ? f.role.replace('_', ' ').toUpperCase() : 'USER';
+        const dateStr = new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const replyHtml = f.admin_reply ? `
+            <div style="margin-top: 12px; padding-left: 12px; border-left: 3px solid var(--primary);">
+                <p style="font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 4px;">👑 Super Admin Replied:</p>
+                <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">${escapeHtml(f.admin_reply)}</p>
+            </div>
+        ` : '';
+
+        const replyBtn = !f.admin_reply ? `
+            <button onclick="openReplyModal(${f.id}, '${escapeHtml(username)}')" class="sa-btn sa-btn-ghost sa-btn-sm" style="margin-top: 12px;">
+                <i class="fas fa-reply"></i> Reply
+            </button>
+        ` : '';
+
+        return `
+            <div style="padding: 16px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; background: var(--bg-card);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                        <strong style="color: var(--text-primary); font-size: 14px;">${escapeHtml(username)}</strong>
+                        <span style="font-size: 11px; color: var(--text-muted); background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; margin-left: 8px;">${escapeHtml(role)}</span>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-muted);">${dateStr}</span>
+                </div>
+                <div style="margin-bottom: 10px; display: flex; gap: 4px;">${starsHtml}</div>
+                ${f.feedback_text ? `<p style="font-size: 13px; color: var(--text-secondary); background: var(--bg-secondary); padding: 12px; border-radius: 8px; margin: 0 0 8px 0;">"${escapeHtml(f.feedback_text)}"</p>` : ''}
+                ${replyHtml}
+                ${replyBtn}
+            </div>
+        `;
+    }).join('');
+}
+
+// ✅ 4. FILTER & SORT FUNCTIONS
+window.setFeedbackFilter = function(star) {
+    currentStarFilter = star;
+    
+    // I-update ang UI ng buttons
+    document.querySelectorAll('.filter-star').forEach(btn => {
+        if (btn.dataset.star === String(star)) {
+            btn.classList.remove('sa-btn-ghost');
+            btn.classList.add('sa-btn-primary');
+        } else {
+            btn.classList.remove('sa-btn-primary');
+            btn.classList.add('sa-btn-ghost');
+        }
+    });
+
+    renderFeedbacks();
+};
+
+// ✅ 5. REPLY MODAL LOGIC
+window.openReplyModal = function(feedbackId, username) {
+    document.getElementById('replyFeedbackId').value = feedbackId;
+    document.getElementById('replyUsername').textContent = username;
+    document.getElementById('replyText').value = '';
+    document.getElementById('replyModal').style.display = 'flex';
+};
+
+window.closeReplyModal = function() {
+    document.getElementById('replyModal').style.display = 'none';
+};
+
+window.submitReply = async function(event) {
+    event.preventDefault();
+    const id = document.getElementById('replyFeedbackId').value;
+    const replyText = document.getElementById('replyText').value.trim();
+
+    if (!replyText) return;
+
+    const btn = document.getElementById('submitReplyBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+    try {
+        const res = await fetch(`/api/super-admin/feedbacks/${id}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reply: replyText })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            closeReplyModal();
+            loadFeedbacks(); // I-reload para makita agad ang reply
+        } else {
+            alert('❌ ' + data.message);
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+};
+
+// ✅ 6. INITIALIZATION
+document.addEventListener('DOMContentLoaded', () => {
+    loadDashboard();
+    loadFeedbacks();
+});
+</script>
+{% endblock %}

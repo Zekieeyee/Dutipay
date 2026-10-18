@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Team Payroll - Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💰 Team Payroll</h1>
+    <p class="subtitle">View your team's payroll</p>
+</div>
+
+<!-- PAY PERIOD SELECTOR -->
+<div class="card">
+    <div class="card-header">
+        <h3>📅 Select Pay Period</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Start Date:</label>
+                <input type="date" id="periodStart">
+            </div>
+            <div class="form-group">
+                <label>End Date:</label>
+                <input type="date" id="periodEnd">
+            </div>
+            <div class="form-group">
+                <button class="btn btn-primary" onclick="loadPayroll()">
+                    🔍 View Team Payroll
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TEAM SUMMARY -->
+<div class="stats-grid" style="grid-template-columns: 1fr; max-width: 400px;">
+    <div class="stat-card blue">
+        <h4>Team Members</h4>
+        <p class="stat-number" id="sumEmployees">0</p>
+    </div>
+</div>
+
+<!-- TEAM PAYROLL TABLE -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Team Payroll List</h3>
+        <span class="badge badge-info" id="statusCount">0 paid / 0 pending</span>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Employee</th>
+                    <th>Gross Pay</th>
+                    <th>Deductions</th>
+                    <th>Net Pay</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="teamPayrollTableBody">
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% include "payroll_common.html" %}
+
+<script>
+// =============================================
+// GLOBAL STATE
+// =============================================
+let currentPermissions = {
+    can_view_salary: false,
+    can_see_total: false,
+    can_print_payslip: false,
+    can_mark_received: false,
+    can_unlock_payroll: false
+};
+
+function getPeriod() {
+    return {
+        start: document.getElementById('periodStart').value,
+        end: document.getElementById('periodEnd').value
+    };
+}
+
+function toISO(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function setDefaultPeriod() {
+    const t = new Date();
+    const y = t.getFullYear(), m = t.getMonth();
+    if (t.getDate() <= 15) {
+        document.getElementById('periodStart').value = toISO(new Date(y, m, 1));
+        document.getElementById('periodEnd').value = toISO(new Date(y, m, 15));
+    } else {
+        document.getElementById('periodStart').value = toISO(new Date(y, m, 16));
+        document.getElementById('periodEnd').value = toISO(new Date(y, m + 1, 0));
+    }
+}
+
+// =============================================
+// ✅ NEW: Render table with permission awareness
+// =============================================
+function renderTable(rows) {
+    const tbody = document.getElementById('teamPayrollTableBody');
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">
+            No payroll for this period yet. The Admin generates the payroll.</td></tr>`;
+        return;
+    }
+
+    const canViewSalary = currentPermissions.can_view_salary;
+    const canViewPayslip = currentPermissions.can_view_payslip;
+    const canPrint = currentPermissions.can_print_payslip;
+
+    tbody.innerHTML = rows.map((r, i) => {
+        // ✅ Salary cells — blurred kung walang permission
+        const grossCell = canViewSalary
+            ? `<td>${money(r.gross_pay)}</td>`
+            : `<td><span style="color: var(--text-muted); letter-spacing: 2px;">₱ ••••••</span></td>`;
+        
+        const deductionsCell = canViewSalary
+            ? `<td>${money(r.total_deductions)}</td>`
+            : `<td><span style="color: var(--text-muted); letter-spacing: 2px;">₱ ••••••</span></td>`;
+        
+        const netCell = canViewSalary
+            ? `<td><strong>${money(r.net_pay)}</strong></td>`
+            : `<td><span style="color: var(--text-muted); letter-spacing: 2px;">₱ ••••••</span></td>`;
+
+        // ✅ Status badge
+        const statusBadge = r.received_at
+            ? '<span class="badge badge-success">🔒 Received</span>'
+            : '<span class="badge badge-warning">Pending</span>';
+
+        // ✅ Actions — View at Print lang
+// ✅ Action — View lang (Print nasa loob ng modal na)
+let actionsHtml = '';
+const hasView = canViewSalary && canViewPayslip;
+
+if (hasView) {
+    actionsHtml = `
+        <button class="btn btn-sm btn-info" onclick="viewPayroll(${r.id})" title="View payslip">
+            <i class="fas fa-eye"></i> View
+        </button>
+    `;
+} else {
+    actionsHtml = `<span style="color: var(--text-muted); font-size: 12px;">—</span>`;
+}
+
+        return `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${esc(r.employee_name)}<br><small style="color:var(--text-muted);">${esc(r.employee_code)}</small></td>
+                ${grossCell}
+                ${deductionsCell}
+                ${netCell}
+                <td>${statusBadge}</td>
+                <td class="action-buttons">${actionsHtml}</td>
+            </tr>
+        `;
+    }).join('');
+}
+// =============================================
+// ✅ NEW: Render summary cards with permissions
+// =============================================
+function renderSummary(summary, permissions) {
+    document.getElementById('sumEmployees').textContent = summary.count;
+
+
+}
+
+// =============================================
+// LOAD PAYROLL
+// =============================================
+async function loadPayroll(useLatest) {
+    const tbody = document.getElementById('teamPayrollTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">Loading...</td></tr>';
+
+    try {
+        const params = new URLSearchParams();
+        if (!useLatest) {
+            const p = getPeriod();
+            if (!p.start || !p.end) {
+                toast('Please select a Start and End date first', 'error');
+                return;
+            }
+            params.append('period_start', p.start);
+            params.append('period_end', p.end);
+        }
+
+        const res = await fetch(`/api/payroll?${params.toString()}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+
+        // ✅ Save permissions globally
+        currentPermissions = data.permissions || currentPermissions;
+
+        if (useLatest) {
+            if (data.period) {
+                document.getElementById('periodStart').value = data.period.start;
+                document.getElementById('periodEnd').value = data.period.end;
+            } else {
+                setDefaultPeriod();
+            }
+        }
+
+        renderSummary(data.summary, currentPermissions);
+        renderTable(data.data);
+
+        // ✅ Hide total card entirely kung walang permission
+        const totalCard = document.getElementById('sumNet')?.closest('.stat-card');
+        if (totalCard && !currentPermissions.can_see_total) {
+            // Keep card visible but show hidden state (para consistent layout)
+            // Optional: totalCard.style.display = 'none';
+        }
+
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--accent-red);">Error: ${esc(e.message)}</td></tr>`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => loadPayroll(true));
+
+</script>
+{% endblock %}

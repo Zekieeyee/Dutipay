@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}My Payslip{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💰 My Payslip</h1>
+    <p class="subtitle">View your payslip and payroll history</p>
+</div>
+
+<!-- PAYSLIP HEADER (with business name + employee info) -->
+<div class="card" style="margin-bottom: 16px;">
+    <div class="card-body" style="text-align: center; padding: 24px;">
+        <h2 style="font-size: 22px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary);">
+            {{ farm_display_name or 'FarmSync' }}
+        </h2>
+        <p style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;">
+            PAYSLIP
+        </p>
+
+        <div style="background: var(--bg-secondary); padding: 16px; border-radius: 12px; text-align: left; max-width: 480px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+                <div><strong style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Employee:</strong><br>{{ full_name }}</div>
+                <div><strong style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Code:</strong><br>{{ session.employee_code }}</div>
+                <div><strong style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Cutoff:</strong><br><span id="periodLabel">—</span></div>
+                <div><strong style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Role:</strong><br>{{ role|capitalize }}</div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+            <button class="btn btn-sm btn-success" onclick="printSelected()">
+                <i class="fas fa-print"></i> Print Payslip
+            </button>
+            <button class="btn btn-sm btn-info" onclick="printSelected()" title="Use 'Save as PDF' in print dialog">
+                <i class="fas fa-file-pdf"></i> Save as PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="emptyState" class="card" style="display: none;">
+    <div class="card-body" style="text-align: center; color: var(--text-muted); padding: 40px;">
+        <i class="fas fa-file-invoice" style="font-size: 48px; opacity: 0.4; display: block; margin-bottom: 12px;"></i>
+        <p>You don't have a payroll record yet.</p>
+        <p style="font-size: 13px; margin-top: 8px;">Your payslip will appear here once your employer generates payroll.</p>
+    </div>
+</div>
+
+<div id="payslipCards">
+    <!-- EARNINGS -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line" style="color: var(--accent-green);"></i> Earnings</h3>
+        </div>
+        <div class="card-body" id="earningsBody"></div>
+    </div>
+
+    <!-- DEDUCTIONS -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-minus-circle" style="color: var(--accent-red);"></i> Deductions</h3>
+        </div>
+        <div class="card-body" id="deductionsBody"></div>
+    </div>
+
+    <!-- NET PAY -->
+    <div class="card" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border: none;">
+        <div class="card-body" style="text-align: center; padding: 32px; color: white;">
+            <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.85; margin-bottom: 8px;">Net Pay</p>
+            <p class="net-pay-amount" id="netPayAmount" style="font-size: 36px; font-weight: 800; margin: 0;">₱0.00</p>
+            <p id="paidStatus" style="font-size: 13px; margin-top: 10px; opacity: 0.9;"></p>
+        </div>
+    </div>
+</div>
+
+<!-- PAYSLIP HISTORY -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-history"></i> Payslip History</h3>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th>Net Pay</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.breakdown-row.total {
+    font-weight: 700;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border);
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+    padding-top: 12px;
+}
+.breakdown-row .breakdown-amount {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.breakdown-row.total .breakdown-amount {
+    font-size: 15px;
+    color: var(--accent-green);
+}
+</style>
+
+{% include "payroll_common.html" %}
+
+<script>
+    let myRecords = [];
+    let selectedRecord = null;
+
+    // ---------- helpers ----------
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function money(n) {
+        return '₱' + (parseFloat(n) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    function fmtDate(iso) {
+        if (!iso) return '-';
+        const d = new Date(String(iso).length <= 10 ? iso + 'T00:00:00' : iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleDateString('en-PH', {year: 'numeric', month: 'short', day: 'numeric'});
+    }
+    function fmtPeriod(r) {
+        return `${fmtDate(r.pay_period_start)} - ${fmtDate(r.pay_period_end)}`;
+    }
+    function fmtMinutes(mins) {
+        mins = parseInt(mins) || 0;
+        const h = Math.floor(mins / 60), m = mins % 60;
+        return h ? `${h}h ${m}m` : `${m}m`;
+    }
+    function statusBadge(isReceived) {
+        return isReceived
+            ? '<span class="badge badge-success">Received</span>'
+            : '<span class="badge badge-warning">Pending</span>';
+    }
+    function row(label, amt, cls) {
+        return `<div class="breakdown-row ${cls || ''}">
+                    <span class="breakdown-label">${label}</span>
+                    <span class="breakdown-amount">${money(amt)}</span>
+                </div>`;
+    }
+
+    function renderSelected(r) {
+        selectedRecord = r;
+        document.getElementById('periodLabel').textContent = fmtPeriod(r);
+
+        document.getElementById('earningsBody').innerHTML =
+            row(`Basic Pay (${r.total_days_worked || 0} days worked)`, r.basic_pay) +
+            row(`Overtime Pay (${fmtMinutes(r.total_overtime_minutes)})`, r.overtime_pay || 0) +
+            (r.bonus > 0 ? row('Bonus', r.bonus) : '') +
+            (r.allowance > 0 ? row('Allowance', r.allowance) : '') +
+            row('GROSS PAY', r.gross_pay, 'total');
+
+        document.getElementById('deductionsBody').innerHTML =
+            row(`Late Deduction (${r.total_late_minutes || 0} mins)`, r.late_deduction) +
+            (r.absent_deduction > 0 ? row('Absent Deduction', r.absent_deduction) : '') +
+            (r.custom_deduction > 0 ? row(esc(r.custom_deduction_label || 'Other Deduction'), r.custom_deduction) : '') +
+            row('TOTAL DEDUCTIONS', r.total_deductions, 'total');
+
+        document.getElementById('netPayAmount').textContent = money(r.net_pay);
+        document.getElementById('paidStatus').textContent =
+            r.received_at ? '✅ Received on ' + fmtDate(r.received_at) : '⏳ Pending payment';
+    }
+
+    function renderHistory() {
+        const tbody = document.getElementById('historyBody');
+        if (!tbody) return;
+
+        if (!myRecords || myRecords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">No payslip history yet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = myRecords.map(r => `
+            <tr>
+                <td>${esc(fmtPeriod(r))}</td>
+                <td><strong>${money(r.net_pay)}</strong></td>
+                <td>${statusBadge(r.received_at)}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="selectRecord(${r.id})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function selectRecord(id) {
+        const r = myRecords.find(x => x.id === id);
+        if (r) {
+            renderSelected(r);
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+    }
+
+    function printSelected() {
+        if (selectedRecord) printRecord(selectedRecord);
+    }
+
+    async function loadMyPayroll() {
+        try {
+            const res = await fetch('/api/payroll');
+            const data = await res.json();
+            
+            console.log('📥 Payroll API response:', data);
+
+            if (!data.success) throw new Error(data.message);
+
+            myRecords = data.data || [];
+
+            if (!myRecords.length) {
+                document.getElementById('payslipCards').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('periodLabel').textContent = '-';
+                renderHistory();
+                return;
+            }
+
+            document.getElementById('payslipCards').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+
+            renderSelected(myRecords[0]);
+            renderHistory();
+        } catch (e) {
+            console.error('Load payroll error:', e);
+            document.getElementById('historyBody').innerHTML =
+                `<tr><td colspan="4" style="text-align:center;color:var(--accent-red);padding:20px;">Error: ${esc(e.message)}</td></tr>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadMyPayroll);
+</script>
+{% endblock %}

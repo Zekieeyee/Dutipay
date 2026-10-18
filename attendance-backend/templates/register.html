@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - FarmSync</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', filename='images/DOG.png') }}">
+    <style>
+.register-logo-img {
+    max-width: 240px;
+    width: 100%;
+    height: auto;
+    margin: 0 auto 20px;
+    display: block;
+    filter: drop-shadow(0 4px 20px rgba(74, 124, 89, 0.15));
+    animation: logoFadeIn 0.6s ease;
+}
+
+@keyframes logoFadeIn {
+    from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ⚠️ Kung dark theme, dapat readable pa rin */
+[data-theme="dark"] .register-logo-img {
+    /* Option: add subtle glow */
+    filter: drop-shadow(0 4px 20px rgba(74, 124, 89, 0.3));
+}
+        :root {
+            --bg-primary: #f8faf5;
+            --bg-card: #ffffff;
+            --primary: #4a7c59;
+            --primary-dark: #3d6647;
+            --text-primary: #2d3e2d;
+            --text-secondary: #5a6b5a;
+            --text-muted: #8a9a8a;
+            --border: #e0e7d5;
+            --accent-red: #c45c4a;
+            --accent-green: #6b8e23;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f1a0f;
+            --bg-card: #1e2e1e;
+            --primary: #6b9e7a;
+            --primary-dark: #4a7c59;
+            --text-primary: #e8f0e0;
+            --text-secondary: #b0c0a0;
+            --text-muted: #7a8a70;
+            --border: #2a3a2a;
+            --accent-red: #e07060;
+            --accent-green: #8bb040;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .farm-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .farm-bg::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(74, 124, 89, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(212, 163, 115, 0.12) 0%, transparent 50%);
+            animation: floatBg 20s ease-in-out infinite;
+        }
+
+        @keyframes floatBg {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -30px) rotate(5deg); }
+            66% { transform: translate(-20px, 20px) rotate(-5deg); }
+        }
+
+        .leaf {
+            position: absolute;
+            font-size: 40px;
+            opacity: 0.15;
+            animation: floatLeaf 15s ease-in-out infinite;
+        }
+        .leaf:nth-child(1) { top: 10%; left: 10%; animation-delay: 0s; }
+        .leaf:nth-child(2) { top: 20%; right: 15%; animation-delay: 2s; }
+        .leaf:nth-child(3) { bottom: 15%; left: 20%; animation-delay: 4s; }
+        .leaf:nth-child(4) { bottom: 25%; right: 10%; animation-delay: 6s; }
+
+        @keyframes floatLeaf {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(15deg); }
+        }
+
+        .register-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .register-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 36px 36px 40px;
+            box-shadow: 0 20px 60px rgba(74, 124, 89, 0.15);
+            border: 1px solid var(--border);
+            animation: scaleIn 0.5s ease;
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .back-to-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .back-to-home:hover {
+            color: var(--primary);
+            background: var(--bg-card);
+            border-color: var(--primary);
+            transform: translateX(-3px);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: white;
+            transform: rotate(20deg);
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .register-logo {
+            font-size: 56px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .register-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .register-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper input,
+        .input-wrapper select,
+        .input-wrapper textarea {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .input-wrapper input:focus,
+        .input-wrapper select:focus,
+        .input-wrapper textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(74, 124, 89, 0.1);
+            background: var(--bg-card);
+        }
+
+        /* ✅ CUSTOM SELECT STYLING — SINGLE ARROW ONLY */
+        .input-wrapper select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a7c59' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 16px;
+            padding-right: 48px;
+            cursor: pointer;
+        }
+
+        [data-theme="dark"] .input-wrapper select {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238bb89a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        }
+
+        .input-wrapper select::-ms-expand {
+            display: none;
+        }
+
+        .input-wrapper select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 10px;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 16px;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            transition: color 0.3s;
+        }
+
+        .password-toggle:hover {
+            color: var(--primary);
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .checkbox-wrapper a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-register {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: inherit;
+        }
+
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(74, 124, 89, 0.35);
+        }
+
+        .btn-register:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-error {
+            background: rgba(196, 92, 74, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(196, 92, 74, 0.2);
+        }
+
+        .alert-success {
+            background: rgba(107, 142, 35, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(107, 142, 35, 0.2);
+        }
+
+        .register-footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .register-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .register-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .register-card { padding: 32px 24px; }
+            .form-row { grid-template-columns: 1fr; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+        <i class="fas fa-moon" id="themeIcon"></i>
+    </button>
+
+    <div class="farm-bg">
+        <span class="leaf">🌿</span>
+        <span class="leaf">🍃</span>
+        <span class="leaf">🌾</span>
+        <span class="leaf">🌱</span>
+    </div>
+
+    <div class="register-container">
+        <div class="register-card">
+            <a href="/" class="back-to-home">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+
+<div class="register-header">
+    <img src="{{ url_for('static', filename='images/DOG.png') }}"
+         alt="Dutipay — Track time. Pay right."
+         class="register-logo-img">
+    <h1>Create Your Account</h1>
+    <p>Get started with Dutipay in seconds</p>
+</div>
+
+            {% if error %}
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <span>{{ success }}</span>
+            </div>
+            {% endif %}
+
+<form method="POST" action="/register" id="registerForm" autocomplete="off">
+
+    <div class="form-group">
+        <label for="business_name">Business Name *</label>
+        <div class="input-wrapper">
+            <i class="fas fa-building input-icon"></i>
+            <input type="text" id="business_name" name="business_name" 
+                   placeholder="e.g., ABC Retail Corp" 
+                   autocomplete="off" required
+                   value="{{ form_data.business_name if form_data else '' }}">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="business_type">Business Type</label>
+        <div class="input-wrapper">
+            <i class="fas fa-tag input-icon"></i>
+            <select id="business_type" name="business_type" onchange="handleBusinessTypeChange()">
+                <option value="">Select business type...</option>
+                {% set bt = form_data.business_type if form_data else '' %}
+                <option value="Retail" {% if bt == 'Retail' %}selected{% endif %}>Retail Store</option>
+                <option value="Restaurant" {% if bt == 'Restaurant' %}selected{% endif %}>Restaurant / Cafe</option>
+                <option value="Grocery" {% if bt == 'Grocery' %}selected{% endif %}>Grocery / Supermarket</option>
+                <option value="Salon" {% if bt == 'Salon' %}selected{% endif %}>Salon / Barbershop</option>
+                <option value="Clinic" {% if bt == 'Clinic' %}selected{% endif %}>Clinic / Pharmacy</option>
+                <option value="Construction" {% if bt == 'Construction' %}selected{% endif %}>Construction</option>
+                <option value="Logistics" {% if bt == 'Logistics' %}selected{% endif %}>Logistics / Delivery</option>
+                <option value="Warehouse" {% if bt == 'Warehouse' %}selected{% endif %}>Warehouse</option>
+                <option value="Office" {% if bt == 'Office' %}selected{% endif %}>Office / Corporate</option>
+                <option value="School" {% if bt == 'School' %}selected{% endif %}>School / Tutorial Center</option>
+                <option value="Hotel" {% if bt == 'Hotel' %}selected{% endif %}>Hotel / Resort</option>
+                <option value="Manufacturing" {% if bt == 'Manufacturing' %}selected{% endif %}>Manufacturing</option>
+                <option value="Services" {% if bt == 'Services' %}selected{% endif %}>Services</option>
+                <option value="Other" {% if bt == 'Other' %}selected{% endif %}>Other (Custom)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Custom business type input -->
+    <div class="form-group" id="customBusinessTypeGroup" style="display: none;">
+        <label for="business_type_custom">Specify Business Type *</label>
+        <div class="input-wrapper">
+            <i class="fas fa-edit input-icon"></i>
+            <input type="text" id="business_type_custom" name="business_type_custom" 
+                   placeholder="e.g., Pet Shop, Fitness Gym" autocomplete="off">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="first_name">Owner First Name *</label>
+            <div class="input-wrapper">
+                <i class="fas fa-user input-icon"></i>
+                <input type="text" id="first_name" name="first_name" 
+                       placeholder="Juan" autocomplete="off" required
+                       value="{{ form_data.first_name if form_data else '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="last_name">Owner Last Name *</label>
+            <div class="input-wrapper">
+                <i class="fas fa-user input-icon"></i>
+                <input type="text" id="last_name" name="last_name" 
+                       placeholder="Dela Cruz" autocomplete="off" required
+                       value="{{ form_data.last_name if form_data else '' }}">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="email">Business Email *</label>
+        <div class="input-wrapper">
+            <i class="fas fa-envelope input-icon"></i>
+            <input type="email" id="email" name="email" 
+                   placeholder="owner@business.com" autocomplete="off" required
+                   value="{{ form_data.email if form_data else '' }}">
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+            💡 Your login credentials will be sent to this email once approved.
+        </p>
+    </div>
+
+    <div class="form-group">
+        <label for="phone">Contact Phone</label>
+        <div class="input-wrapper">
+            <i class="fas fa-phone input-icon"></i>
+            <input type="tel" id="phone" name="phone" 
+                   placeholder="+639123456789" 
+                   maxlength="13"
+                   pattern="\+63[0-9]{10}"
+                   title="Format: +63 followed by 10 digits"
+                   autocomplete="off"
+                   oninput="formatPhoneNumber(this)"
+                   value="{{ form_data.phone if form_data else '' }}">
+        </div>
+        <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">
+            Format: +63 then 10 digits (e.g., +639123456789)
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="business_address">Business Address</label>
+        <div class="input-wrapper">
+            <i class="fas fa-map-marker-alt input-icon"></i>
+            <input type="text" id="business_address" name="business_address" 
+                   placeholder="Complete business address" autocomplete="off"
+                   value="{{ form_data.business_address if form_data else '' }}">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="registration_notes">Additional Notes</label>
+        <div class="input-wrapper">
+            <i class="fas fa-info-circle input-icon" style="top:20px;transform:none;"></i>
+            <textarea id="registration_notes" name="registration_notes" 
+                      placeholder="Anything you'd like us to know? (optional)"
+                      rows="3"
+                      style="padding:12px 16px 12px 44px;resize:vertical;">{{ form_data.registration_notes if form_data else '' }}</textarea>
+        </div>
+    </div>
+
+    <div class="checkbox-wrapper">
+        <input type="checkbox" id="terms" name="terms" required>
+        <label for="terms">
+            I agree to the <a href="/terms" target="_blank">Terms of Service</a> and 
+            <a href="/privacy" target="_blank">Privacy Policy</a>
+        </label>
+    </div>
+
+    <button type="submit" class="btn-register" id="registerBtn">
+        <i class="fas fa-paper-plane"></i>
+        <span id="registerBtnText">Submit Registration</span>
+    </button>
+</form>
+
+            <div class="register-footer">
+                Already have an account? <a href="/login">Login here</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // THEME TOGGLE (must be at TOP for onclick to work)
+        // =============================================
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeIcon(next);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        // =============================================
+        // BUSINESS TYPE HANDLER
+        // =============================================
+        function handleBusinessTypeChange() {
+            const select = document.getElementById('business_type');
+            const customGroup = document.getElementById('customBusinessTypeGroup');
+            const customInput = document.getElementById('business_type_custom');
+            
+            if (select.value === 'Other') {
+                customGroup.style.display = 'block';
+                customInput.required = true;
+            } else {
+                customGroup.style.display = 'none';
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+
+        // =============================================
+        // PHONE NUMBER FORMATTING
+        // =============================================
+        function formatPhoneNumber(input) {
+            let value = input.value.replace(/[^\d+]/g, '');
+            
+            if (!value.startsWith('+63')) {
+                const digits = value.replace(/\D/g, '');
+                if (digits.length > 0 && digits.startsWith('63')) {
+                    value = '+' + digits;
+                } else if (digits.length > 0 && digits.startsWith('0')) {
+                    value = '+63' + digits.substring(1);
+                } else if (digits.length > 0) {
+                    value = '+63' + digits;
+                } else {
+                    value = '+63';
+                }
+            }
+            
+            if (value.length > 13) {
+                value = value.substring(0, 13);
+            }
+            
+            if (value.startsWith('+63')) {
+                const digits = value.substring(3).replace(/\D/g, '');
+                value = '+63' + digits.substring(0, 10);
+            }
+            
+            input.value = value;
+        }
+
+        // =============================================
+        // FORM SUBMIT HANDLER
+        // =============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial theme icon
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            updateThemeIcon(savedTheme);
+
+            // Form submit handler
+            const form = document.getElementById('registerForm');
+            if (!form) return;
+
+            form.addEventListener('submit', function(e) {
+                const select = document.getElementById('business_type');
+                const customInput = document.getElementById('business_type_custom');
+                
+                // If "Other" selected but no custom type
+                if (select.value === 'Other' && !customInput.value.trim()) {
+                    e.preventDefault();
+                    alert('❌ Please specify your business type.');
+                    return;
+                }
+                
+                // If "Other" is selected with valid custom value
+                if (select.value === 'Other' && customInput.value.trim()) {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'business_type';
+                    hidden.value = customInput.value.trim();
+                    select.name = 'business_type_dropdown';
+                    form.appendChild(hidden);
+                }
+
+                // Phone validation
+                const phone = document.getElementById('phone').value.trim();
+                if (phone) {
+                    const phoneRegex = /^\+63\d{10}$/;
+                    if (!phoneRegex.test(phone)) {
+                        e.preventDefault();
+                        alert('❌ Invalid phone number. Format: +63 followed by 10 digits (e.g., +639123456789)');
+                        return;
+                    }
+                }
+                
+                // Disable button
+                const btn = document.getElementById('registerBtn');
+                const btnText = document.getElementById('registerBtnText');
+                btn.disabled = true;
+                btnText.textContent = 'Submitting...';
+            });
+        });
+    </script>
+</body>
+</html>

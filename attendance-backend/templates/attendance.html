@@ -1,0 +1,874 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 Attendance Records</h1>
+    <p class="subtitle">View daily attendance</p>
+</div>
+
+<!-- FILTER CARD -->
+<div class="card">
+    <div class="card-header">
+        <h3>🔍 Filter by Date Range</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>From Date:</label>
+                <input type="date" id="filterDateFrom">
+            </div>
+            <div class="form-group">
+                <label>To Date:</label>
+                <input type="date" id="filterDateTo">
+            </div>
+            <div class="form-group" style="display: flex; gap: 8px; align-items: flex-end;">
+                <button class="btn btn-primary" onclick="loadAttendance()">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <button class="btn btn-secondary" onclick="resetFilter()">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick range buttons -->
+        <div class="quick-range-grid">
+            <button class="quick-range-btn" data-range="today" onclick="setQuickRange('today')">
+                <i class="fas fa-calendar-day"></i>
+                <span>Today</span>
+            </button>
+            <button class="quick-range-btn" data-range="week" onclick="setQuickRange('week')">
+                <i class="fas fa-calendar-week"></i>
+                <span>This Week</span>
+            </button>
+            <button class="quick-range-btn" data-range="month" onclick="setQuickRange('month')">
+                <i class="fas fa-calendar-alt"></i>
+                <span>This Month</span>
+            </button>
+            <button class="quick-range-btn" data-range="last30" onclick="setQuickRange('last30')">
+                <i class="fas fa-calendar-check"></i>
+                <span>Last 30 Days</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ATTENDANCE LIST CARD -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Attendance List</h3>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <span class="badge badge-info" id="recordCount">0 records</span>
+            {% if role == 'admin' %}
+            <button class="btn btn-sm btn-primary" onclick="openManualEntryModal()">
+                <i class="fas fa-plus"></i> Manual Entry
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="data-table attendance-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Employee</th>
+                    <th>Date</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                    <th>Late (mins)</th>
+                    <th>Status</th>
+                    {% if role == 'admin' %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody id="attendanceTable">
+                <tr>
+                    <td colspan="{% if role == 'admin' %}8{% else %}7{% endif %}"
+                        style="text-align: center; color: var(--text-muted);">
+                        Loading...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if role in ['admin', 'manager'] %}
+<!-- ATTENDANCE PHOTOS (with pagination) -->
+<div class="card">
+    <div class="card-header">
+        <h3>📸 Attendance Photos</h3>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="badge badge-info" id="photoCount">0 photos</span>
+            <span class="badge badge-success" id="photoPage">Page 1</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="photosGrid" class="photos-grid">
+            <div style="text-align: center; padding: 40px; grid-column: 1 / -1;">
+                <p style="color: var(--text-muted);">Loading photos...</p>
+            </div>
+        </div>
+
+        <div id="photosLoadMore" style="display: none; text-align: center; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="loadMorePhotos()">
+                <i class="fas fa-arrow-down"></i> Load More Photos
+            </button>
+            <p id="photosLoadInfo" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+/* Quick range buttons */
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* ✅ Photo Grid Styles */
+.photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.photo-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+}
+
+.photo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--primary);
+}
+
+.photo-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    display: block;
+    background: var(--bg-card);
+}
+
+.photo-placeholder {
+    width: 100%;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 48px;
+}
+
+.photo-info {
+    padding: 12px;
+}
+
+.photo-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.photo-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.no-photos {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    grid-column: 1 / -1;
+}
+
+.no-photos i {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+    display: block;
+}
+
+/* ✅ Pagination controls */
+#attendancePagination button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#attendancePagination select {
+    font-family: inherit;
+}
+
+#attendancePagination select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ✅ Specific sa attendance table only */
+.attendance-table th {
+    padding: 14px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+}
+
+.attendance-table td {
+    padding: 14px 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+}
+
+.attendance-table td:nth-child(1) {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.attendance-table td:nth-child(2) {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.attendance-table td:nth-child(6) {
+    text-align: center;
+    font-weight: 600;
+}
+
+.attendance-table td:nth-child(7) {
+    text-align: center;
+}
+
+.attendance-table td .badge {
+    padding: 6px 14px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+</style>
+
+<!-- ============================================= -->
+<!-- MANUAL ATTENDANCE ENTRY MODAL (admin only)    -->
+<!-- ✅ NASA LABAS NG <script> TAG ITO            -->
+<!-- ============================================= -->
+{% if role == 'admin' %}
+<div id="manualAttendanceModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h3 id="manualModalTitle">➕ Manual Attendance Entry</h3>
+            <button class="modal-close" onclick="closeManualModal()">&times;</button>
+        </div>
+        <form onsubmit="saveManualAttendance(event)">
+            <input type="hidden" id="manualAttendanceId">
+            <div style="padding: 24px;">
+                <div class="alert alert-info" style="margin-bottom: 20px; font-size: 13px;">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Use this to add attendance for employees who forgot to scan. All changes are <strong>audit logged</strong>.</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Employee *</label>
+                    <select id="manualEmployeeId" required>
+                        <option value="">— Select employee —</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="manualDate" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Time In *</label>
+                        <input type="time" id="manualTimeIn" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Time Out</label>
+                        <input type="time" id="manualTimeOut">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Reason for Manual Entry *</label>
+                    <textarea id="manualReason" rows="3" required minlength="5"
+                              placeholder="e.g., When employee forgot to time-in, offline scanner, emergency leave..."
+                              style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%;"></textarea>
+                    <small style="color: var(--text-muted); font-size: 11px;">Min 5 characters. This will be recorded in the audit log.</small>
+                </div>
+            </div>
+            <div class="modal-actions" style="padding: 0 24px 24px;">
+                <button type="button" class="btn btn-secondary" onclick="closeManualModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="manualSaveBtn">
+                    <i class="fas fa-save"></i> Save Attendance
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- ============================================= -->
+<!-- ✅ <script> TAG DITO — PURO JAVASCRIPT LANG    -->
+<!-- ============================================= -->
+<script>
+// =============================================
+// SHARED HELPERS
+// =============================================
+const userRole = "{{ role|lower }}";
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        const datePart = String(dateStr).substring(0, 10);
+        const [y, m, d] = datePart.split('-').map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d));
+        return date.toLocaleDateString('en-PH', {
+            year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC'
+        });
+    } catch (e) { return dateStr; }
+}
+
+function formatTime(value) {
+    if (!value) return '-';
+    try {
+        const d = new Date(value);
+        if (isNaN(d)) return '-';
+        return d.toLocaleTimeString('en-PH', {
+            hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila'
+        });
+    } catch (e) { return '-'; }
+}
+
+// =============================================
+// PAGINATION STATE
+// =============================================
+let currentPage = 1;
+let currentPerPage = 20;
+let currentDateFrom = '';
+let currentDateTo = '';
+
+// =============================================
+// LOAD ATTENDANCE (server-side paginated)
+// =============================================
+async function loadAttendance(page = 1, perPage = null) {
+    const dateFrom = document.getElementById('filterDateFrom').value;
+    const dateTo = document.getElementById('filterDateTo').value;
+
+    // Save current filter state
+    currentDateFrom = dateFrom;
+    currentDateTo = dateTo;
+    currentPage = page;
+    if (perPage !== null) currentPerPage = perPage;
+
+    const tbody = document.getElementById('attendanceTable');
+    const colCount = userRole === 'admin' ? 8 : 7;
+
+    tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;color:var(--text-muted);padding:20px;">Loading...</td></tr>`;
+
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    params.append('page', currentPage);
+    params.append('per_page', currentPerPage);
+
+    try {
+        const res = await fetch(`/api/attendance/all?${params.toString()}`);
+        const data = await res.json();
+
+        if (!data.success || !data.data || !data.data.length) {
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;color:var(--text-muted);padding:20px;">No records found.</td></tr>`;
+            document.getElementById('recordCount').textContent = '0 records';
+            renderPagination(null, colCount);
+            if (userRole === 'admin' || userRole === 'manager') {
+                loadPhotos(dateFrom, dateTo, 1);
+            }
+            return;
+        }
+
+        // ✅ Update count with pagination info
+        const pg = data.pagination;
+        const start = (pg.page - 1) * pg.per_page + 1;
+        const end = Math.min(pg.page * pg.per_page, pg.total);
+        document.getElementById('recordCount').textContent =
+            `Showing ${start}–${end} of ${pg.total}`;
+
+        tbody.innerHTML = data.data.map(r => `
+            <tr>
+                <td><strong>${escapeHtml(r.employee_code)}</strong></td>
+                <td>${escapeHtml(r.employee_name)}</td>
+                <td>${escapeHtml(formatDate(r.attendance_date))}</td>
+                <td>${r.time_in ? escapeHtml(formatTime(r.time_in)) : '-'}</td>
+                <td>${r.time_out ? escapeHtml(formatTime(r.time_out)) : '-'}</td>
+                <td style="text-align:center;">${escapeHtml(r.late_minutes || 0)}</td>
+                <td style="text-align:center;">
+                    <span class="badge badge-${r.status === 'Late' ? 'warning' : 'success'}">
+                        ${escapeHtml(r.status)}
+                    </span>
+                </td>
+                ${userRole === 'admin' ? `
+                <td class="action-buttons">
+                    <button class="btn btn-sm btn-warning"
+                            data-id="${r.id}"
+                            data-code="${escapeHtml(r.employee_code)}"
+                            data-name="${escapeHtml(r.employee_name)}"
+                            data-date="${r.attendance_date}"
+                            data-in="${r.time_in || ''}"
+                            data-out="${r.time_out || ''}"
+                            onclick="openEditModal(this)" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger"
+                            data-id="${r.id}"
+                            data-name="${escapeHtml(r.employee_name)}"
+                            data-date="${r.attendance_date}"
+                            onclick="deleteRecord(this)" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+                ` : ''}
+            </tr>
+        `).join('');
+
+        // ✅ Render pagination controls
+        renderPagination(pg, colCount);
+
+        // ✅ Load photos (first page lang)
+        if (userRole === 'admin' || userRole === 'manager') {
+            loadPhotos(dateFrom, dateTo, 1);
+        }
+
+    } catch (e) {
+        console.error('loadAttendance error:', e);
+        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;color:var(--accent-red);padding:20px;">Error: ${escapeHtml(e.message)}</td></tr>`;
+    }
+}
+
+// =============================================
+// RENDER PAGINATION CONTROLS
+// =============================================
+function renderPagination(pg, colCount) {
+    let container = document.getElementById('attendancePagination');
+    if (!container) {
+        // Create pagination container after table
+        const table = document.querySelector('.data-table');
+        container = document.createElement('div');
+        container.id = 'attendancePagination';
+        container.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 8px;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:12px;';
+
+        // Insert after table's card-body
+        const cardBody = table.closest('.card-body');
+        cardBody.appendChild(container);
+    }
+
+    if (!pg || pg.total === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const start = (pg.page - 1) * pg.per_page + 1;
+    const end = Math.min(pg.page * pg.per_page, pg.total);
+
+    container.innerHTML = `
+        <div style="font-size:13px;color:var(--text-muted);">
+            Showing <strong>${start}–${end}</strong> of <strong>${pg.total}</strong>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:12px;color:var(--text-muted);">Per page:</label>
+            <select onchange="changePerPage(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text-primary);font-size:13px;cursor:pointer;">
+                <option value="10" ${pg.per_page === 10 ? 'selected' : ''}>10</option>
+                <option value="20" ${pg.per_page === 20 ? 'selected' : ''}>20</option>
+                <option value="50" ${pg.per_page === 50 ? 'selected' : ''}>50</option>
+                <option value="100" ${pg.per_page === 100 ? 'selected' : ''}>100</option>
+            </select>
+            <button class="btn btn-sm btn-secondary" onclick="goToPage(${pg.page - 1})" ${!pg.has_prev ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i> Prev
+            </button>
+            <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">
+                Page ${pg.page} / ${pg.total_pages}
+            </span>
+            <button class="btn btn-sm btn-secondary" onclick="goToPage(${pg.page + 1})" ${!pg.has_next ? 'disabled' : ''}>
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    `;
+}
+
+function goToPage(page) {
+    if (page < 1) return;
+    loadAttendance(page);
+    // Scroll to top of table
+    document.querySelector('.data-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function changePerPage(perPage) {
+    currentPerPage = parseInt(perPage);
+    currentPage = 1;
+    loadAttendance(1, currentPerPage);
+}
+
+// =============================================
+// PHOTOS — SERVER-SIDE PAGINATED
+// =============================================
+async function loadPhotos(dateFrom, dateTo, page = 1) {
+    const grid = document.getElementById('photosGrid');
+    const loadMoreDiv = document.getElementById('photosLoadMore');
+    if (!grid) return;
+
+    loadMoreDiv.style.display = 'none';
+    grid.innerHTML = '<div style="text-align: center; padding: 40px; grid-column: 1 / -1;"><p style="color: var(--text-muted);">Loading photos...</p></div>';
+
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    params.append('page', page);
+    params.append('per_page', 12);
+
+    try {
+        const res = await fetch(`/api/attendance/photos?${params.toString()}`);
+        const data = await res.json();
+
+        const pg = data.pagination || { total: 0, page: 1, total_pages: 0 };
+
+        if (!data.success || !data.data.length) {
+            document.getElementById('photoCount').textContent = '0 photos';
+            document.getElementById('photoPage').textContent = 'Page 0 / 0';
+            grid.innerHTML = `
+                <div class="no-photos">
+                    <i class="fas fa-camera"></i>
+                    <p>No attendance photos found for this date range</p>
+                </div>
+            `;
+            return;
+        }
+
+        document.getElementById('photoCount').textContent = `${pg.total} photos`;
+        document.getElementById('photoPage').textContent = `Page ${pg.page} / ${pg.total_pages}`;
+
+        grid.innerHTML = data.data.map(record => `
+            <div class="photo-card">
+                ${record.photo_url
+                    ? `<img src="${escapeHtml(record.photo_url)}" alt="${escapeHtml(record.employee_name)}" loading="lazy">`
+                    : `<div class="photo-placeholder"><i class="fas fa-user"></i></div>`
+                }
+                <div class="photo-info">
+                    <div class="photo-name">${escapeHtml(record.employee_name)}</div>
+                    <div class="photo-time">
+                        <strong>${escapeHtml(record.employee_code)}</strong><br>
+                        ${escapeHtml(formatDate(record.attendance_date))}<br>
+                        In: ${record.time_in ? escapeHtml(formatTime(record.time_in)) : '-'}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        // ✅ Show pagination for photos
+        loadMoreDiv.style.display = 'block';
+        document.getElementById('photosLoadInfo').innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-secondary" onclick="loadPhotos('${dateFrom}', '${dateTo}', ${pg.page - 1})" ${!pg.has_prev ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i> Prev
+                </button>
+                <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">
+                    Page ${pg.page} / ${pg.total_pages} (${pg.total} photos)
+                </span>
+                <button class="btn btn-sm btn-secondary" onclick="loadPhotos('${dateFrom}', '${dateTo}', ${pg.page + 1})" ${!pg.has_next ? 'disabled' : ''}>
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+
+    } catch (e) {
+        console.error('Load photos error:', e);
+        grid.innerHTML = `<p style="color: var(--accent-red); grid-column: 1 / -1;">Error: ${escapeHtml(e.message)}</p>`;
+    }
+}
+
+// =============================================
+// DATE HELPERS
+// =============================================
+function setDateValue(inputId, date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    document.getElementById(inputId).value = `${year}-${month}-${day}`;
+}
+
+function setQuickRange(range) {
+    const today = new Date();
+    let fromDate, toDate;
+
+    switch (range) {
+        case 'today': fromDate = toDate = today; break;
+        case 'week': {
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            fromDate = monday; toDate = sunday;
+            break;
+        }
+        case 'month':
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'last30':
+            toDate = today;
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - 29);
+            break;
+        default: return;
+    }
+
+    setDateValue('filterDateFrom', fromDate);
+    setDateValue('filterDateTo', toDate);
+    markActiveRange(range);
+    loadAttendance(1);
+}
+
+function markActiveRange(range) {
+    document.querySelectorAll('.quick-range-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === range);
+    });
+}
+
+function resetFilter() {
+    const today = new Date();
+    setDateValue('filterDateFrom', today);
+    setDateValue('filterDateTo', today);
+    markActiveRange(null);
+    loadAttendance(1);
+}
+
+// =============================================
+// MANUAL ATTENDANCE MODAL
+// =============================================
+let employeesCache = [];
+
+async function loadEmployeesForDropdown() {
+    if (employeesCache.length) return employeesCache;
+    try {
+        const res = await fetch('/api/employees');
+        const data = await res.json();
+        if (data.success) employeesCache = data.data;
+        return employeesCache;
+    } catch (e) {
+        console.error('Load employees error:', e);
+        return [];
+    }
+}
+
+async function openManualEntryModal() {
+    const employees = await loadEmployeesForDropdown();
+    const sel = document.getElementById('manualEmployeeId');
+    sel.innerHTML = '<option value="">— Select employee —</option>';
+    employees.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.first_name} ${e.last_name} (${e.employee_code})`;
+        sel.appendChild(opt);
+    });
+
+    document.getElementById('manualAttendanceId').value = '';
+    document.getElementById('manualDate').value = '';
+    document.getElementById('manualTimeIn').value = '';
+    document.getElementById('manualTimeOut').value = '';
+    document.getElementById('manualReason').value = '';
+    document.getElementById('manualModalTitle').textContent = '➕ Manual Attendance Entry';
+    document.getElementById('manualSaveBtn').innerHTML = '<i class="fas fa-save"></i> Save Attendance';
+
+    document.getElementById('manualAttendanceModal').style.display = 'flex';
+}
+
+function closeManualModal() {
+    document.getElementById('manualAttendanceModal').style.display = 'none';
+}
+
+async function saveManualAttendance(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('manualAttendanceId').value;
+    const isEdit = !!id;
+
+    const payload = {
+        employee_id: document.getElementById('manualEmployeeId').value,
+        attendance_date: document.getElementById('manualDate').value,
+        time_in: document.getElementById('manualTimeIn').value,
+        time_out: document.getElementById('manualTimeOut').value,
+        reason: document.getElementById('manualReason').value.trim()
+    };
+
+    if (!payload.reason || payload.reason.length < 5) {
+        alert('❌ Reason must be at least 5 characters.');
+        return;
+    }
+
+    const btn = document.getElementById('manualSaveBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const url = isEdit ? `/api/attendance/${id}` : '/api/attendance/manual';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = orig;
+
+        if (result.success) {
+            alert('✅ ' + result.message);
+            closeManualModal();
+            loadAttendance(currentPage);
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function openEditModal(btn) {
+    const employees = await loadEmployeesForDropdown();
+    const sel = document.getElementById('manualEmployeeId');
+    sel.innerHTML = '<option value="">— Select employee —</option>';
+    employees.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.first_name} ${e.last_name} (${e.employee_code})`;
+        if (`${e.first_name} ${e.last_name}` === btn.dataset.name) {
+            opt.selected = true;
+        }
+        sel.appendChild(opt);
+    });
+
+    document.getElementById('manualAttendanceId').value = btn.dataset.id;
+    document.getElementById('manualDate').value = btn.dataset.date;
+
+    const extractTime = (iso) => {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            return d.toTimeString().slice(0, 5);
+        } catch (e) { return ''; }
+    };
+
+    document.getElementById('manualTimeIn').value = extractTime(btn.dataset.in);
+    document.getElementById('manualTimeOut').value = extractTime(btn.dataset.out);
+    document.getElementById('manualReason').value = '';
+
+    document.getElementById('manualModalTitle').textContent = '✏️ Edit Attendance Record';
+    document.getElementById('manualSaveBtn').innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    document.getElementById('manualAttendanceModal').style.display = 'flex';
+}
+
+async function deleteRecord(btn) {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+    const date = btn.dataset.date;
+
+    const reason = prompt(`🗑️ Delete attendance for ${name} on ${date}?\n\nThis cannot be undone.\n\nReason (min 5 characters):`);
+    if (reason === null) return;
+    if (!reason || reason.trim().length < 5) {
+        alert('❌ Reason must be at least 5 characters.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/attendance/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason.trim() })
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ ' + result.message);
+            loadAttendance(currentPage);
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// INITIALIZE
+// =============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await fetch('/api/cutoff/current');
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('filterDateFrom').value = data.data.start;
+            document.getElementById('filterDateTo').value = data.data.end;
+        } else {
+            const today = new Date();
+            setDateValue('filterDateFrom', today);
+            setDateValue('filterDateTo', today);
+        }
+    } catch (e) {
+        const today = new Date();
+        setDateValue('filterDateFrom', today);
+        setDateValue('filterDateTo', today);
+    }
+    loadAttendance(1);
+});
+</script>{% endblock %}

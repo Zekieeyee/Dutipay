@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Business Registrations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📥 Business Registrations</h1>
+    <p class="subtitle">Review and approve new business applications</p>
+</div>
+
+<!-- Filter Tabs -->
+<div class="sa-tabs">
+    <button class="sa-tab active" data-filter="Pending" onclick="setFilter('Pending')">
+        <i class="fas fa-clock"></i> Pending
+        <span class="sa-tab-count" id="countPending">0</span>
+    </button>
+    <button class="sa-tab" data-filter="Approved" onclick="setFilter('Approved')">
+        <i class="fas fa-check"></i> Approved
+        <span class="sa-tab-count" id="countApproved">0</span>
+    </button>
+    <button class="sa-tab" data-filter="Rejected" onclick="setFilter('Rejected')">
+        <i class="fas fa-times"></i> Rejected
+        <span class="sa-tab-count" id="countRejected">0</span>
+    </button>
+    <button class="sa-tab" data-filter="" onclick="setFilter('')">
+        <i class="fas fa-list"></i> All
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Registrations</h3>
+        <span class="badge badge-info" id="countLabel">0</span>
+    </div>
+    <div class="card-body">
+        <div id="regList">
+            <p style="text-align:center;color:var(--text-muted);">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div id="approveModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header">
+            <h3>✅ Approve Business</h3>
+            <button class="modal-close" onclick="closeApproveModal()">&times;</button>
+        </div>
+        <form onsubmit="submitApprove(event)">
+            <input type="hidden" id="approveRegId">
+            <div style="padding: 0 24px;">
+                <div class="alert alert-info" style="margin-bottom:16px;">
+                    <i class="fas fa-info-circle"></i>
+                    <span>This will create the business and an Admin account. Credentials will be emailed to the owner.</span>
+                </div>
+                <div class="form-group">
+                    <label>Admin Username *</label>
+                    <input type="text" id="approveUsername" required placeholder="e.g. abc_admin" 
+                           style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;width:100%;font-family:inherit;background:var(--bg-card);color:var(--text-primary);">
+                    <small style="color:var(--text-muted);font-size:11px;">Default password will be sent via email.</small>
+                </div>
+            </div>
+            <div class="modal-actions" style="padding:24px;">
+                <button type="button" class="btn btn-secondary" onclick="closeApproveModal()">Cancel</button>
+                <button type="submit" class="btn btn-success" id="approveBtn">
+                    <i class="fas fa-check"></i> Approve & Create Admin
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentFilter = 'Pending';
+let allRegs = [];  // ✅ Declared at top level
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function escapeJs(s) {
+    return String(s || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+function fmtDate(iso) {
+    if (!iso) return '—';
+    try { 
+        return new Date(iso).toLocaleString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric', 
+            hour: '2-digit', minute: '2-digit'
+        }); 
+    } catch(e) { return iso; }
+}
+
+function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.sa-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === f);
+    });
+    loadRegistrations();
+}
+
+async function loadRegistrations() {
+    const container = document.getElementById('regList');
+    if (!container) {
+        console.error('regList container not found');
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="sa-empty" style="text-align:center;padding:40px;">
+            <div class="sa-empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+            <p style="color: var(--text-muted);">Loading...</p>
+        </div>
+    `;
+
+    try {
+        const url = currentFilter 
+            ? `/api/super-admin/business-registrations?status=${currentFilter}`
+            : '/api/super-admin/business-registrations';
+        
+        console.log('📥 Fetching:', url);
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        console.log('📥 Response:', data);
+
+        if (!data.success) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px;color:var(--accent-red);">
+                    Error: ${escapeHtml(data.message || 'Unknown error')}
+                </div>
+            `;
+            return;
+        }
+
+        allRegs = data.data || [];
+        const countLabel = document.getElementById('countLabel');
+        if (countLabel) countLabel.textContent = `${allRegs.length} record(s)`;
+
+        if (!allRegs.length) {
+            container.innerHTML = `
+                <div class="sa-empty" style="text-align:center;padding:40px 20px;">
+                    <div class="sa-empty-icon"><i class="fas fa-check-circle"></i></div>
+                    <h3 style="color: var(--text-primary); margin: 12px 0 6px;">No registrations</h3>
+                    <p style="color: var(--text-muted);">No  ${escapeHtml(currentFilter || 'all')} registrations at the moment.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = allRegs.map(r => {
+            const statusMap = {
+                'Pending': 'badge-warning',
+                'Approved': 'badge-success',
+                'Rejected': 'badge-danger'
+            };
+            const badgeClass = statusMap[r.status] || 'badge-info';
+
+            const actions = r.status === 'Pending' ? `
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="sa-btn sa-btn-primary sa-btn-sm" onclick="openApprove(${r.id}, '${escapeJs(r.business_name)}')">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="sa-btn sa-btn-danger sa-btn-sm" onclick="rejectReg(${r.id})">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </div>
+            ` : '';
+
+            return `
+                <div class="sa-list-item" style="padding: 20px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; background: var(--bg-card); display: flex; flex-direction: column; gap: 12px;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                        <div>
+                            <h4 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px;">${escapeHtml(r.business_name)}</h4>
+                            <small style="color: var(--text-muted); font-size: 12px;">${escapeHtml(r.business_type || 'Business')}</small>
+                        </div>
+                        <span class="badge ${badgeClass}" style="text-transform: uppercase;">${escapeHtml(r.status)}</span>
+                    </div>
+
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8; display: grid; gap: 4px;">
+                        <div><i class="fas fa-user" style="color: var(--primary); width: 16px;"></i> <strong>Owner:</strong> ${escapeHtml(r.owner_first_name)} ${escapeHtml(r.owner_last_name)}</div>
+                        <div><i class="fas fa-envelope" style="color: var(--primary); width: 16px;"></i> <strong>Email:</strong> ${escapeHtml(r.owner_email)}</div>
+                        ${r.owner_phone ? `<div><i class="fas fa-phone" style="color: var(--primary); width: 16px;"></i> <strong>Phone:</strong> ${escapeHtml(r.owner_phone)}</div>` : ''}
+                        ${r.business_address ? `<div><i class="fas fa-map-marker-alt" style="color: var(--primary); width: 16px;"></i> <strong>Address:</strong> ${escapeHtml(r.business_address)}</div>` : ''}
+                        ${r.registration_notes ? `<div><i class="fas fa-sticky-note" style="color: var(--primary); width: 16px;"></i> <strong>Notes:</strong> ${escapeHtml(r.registration_notes)}</div>` : ''}
+                    </div>
+
+                    <div style="font-size: 11px; color: var(--text-muted); padding-top: 8px; border-top: 1px dashed var(--border);">
+                        <i class="fas fa-clock"></i> Submitted: ${fmtDate(r.created_at)}
+                        ${r.rejection_reason ? `<div style="color: var(--accent-red); margin-top: 6px;"><strong>Rejection reason:</strong> ${escapeHtml(r.rejection_reason)}</div>` : ''}
+                    </div>
+
+                    ${actions ? `<div style="padding-top: 8px; border-top: 1px solid var(--border);">${actions}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        // ✅ Update tab counts
+        updateTabCounts();
+
+    } catch (e) {
+        console.error('Load registrations error:', e);
+        container.innerHTML = `
+            <div style="text-align:center;padding:40px;color:var(--accent-red);">
+                <i class="fas fa-exclamation-triangle" style="font-size: 32px; opacity: 0.5; display: block; margin-bottom: 12px;"></i>
+                <p>Error: ${escapeHtml(e.message)}</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Check the browser console (F12) for details.</p>
+            </div>
+        `;
+    }
+}
+
+async function updateTabCounts() {
+    try {
+        const res = await fetch('/api/super-admin/business-registrations');
+        const data = await res.json();
+        if (!data.success) return;
+        
+        const all = data.data || [];
+        const counts = {
+            'Pending': all.filter(r => r.status === 'Pending').length,
+            'Approved': all.filter(r => r.status === 'Approved').length,
+            'Rejected': all.filter(r => r.status === 'Rejected').length,
+            'All': all.length
+        };
+        
+        const pendingEl = document.getElementById('countPending');
+        const approvedEl = document.getElementById('countApproved');
+        const rejectedEl = document.getElementById('countRejected');
+        
+        if (pendingEl) pendingEl.textContent = counts.Pending;
+        if (approvedEl) approvedEl.textContent = counts.Approved;
+        if (rejectedEl) rejectedEl.textContent = counts.Rejected;
+    } catch (e) {
+        console.error('Update tab counts error:', e);
+    }
+}
+
+function openApprove(id, businessName) {
+    document.getElementById('approveRegId').value = id;
+    
+    const reg = allRegs.find(r => r.id === id);
+    
+    let base = '';
+    if (reg && reg.owner_email) {
+        base = reg.owner_email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
+    } else {
+        base = businessName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+    }
+    
+    document.getElementById('approveUsername').value = (base || 'admin') + '_admin';
+    document.getElementById('approveModal').style.display = 'flex';
+}
+
+function closeApproveModal() {
+    document.getElementById('approveModal').style.display = 'none';
+}
+
+async function submitApprove(e) {
+    e.preventDefault();
+    const id = document.getElementById('approveRegId').value;
+    const username = document.getElementById('approveUsername').value.trim();
+
+    if (!confirm(`✅ Approve this registration?\n\nAdmin username: ${username}\n\nCredentials will be emailed to the owner.`)) return;
+
+    const btn = document.getElementById('approveBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+    try {
+        const res = await fetch(`/api/super-admin/business-registrations/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ admin_username: username })
+        });
+
+        const text = await res.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (parseErr) {
+            console.error('Non-JSON response:', text.substring(0, 500));
+            result = { 
+                success: false, 
+                message: `Server error (HTTP ${res.status}). Check Flask console for details.` 
+            };
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = orig;
+
+        if (result.success) {
+            alert(
+                `✅ Business Approved!\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `Business Code: ${result.business_code || '—'}\n` +
+                `Username: ${result.username}\n` +
+                `Password: ${result.password}\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                `📧 Credentials emailed to owner.`
+            );
+            closeApproveModal();
+            loadRegistrations();
+        } else {
+            // ✅ Better error mapping
+            let msg = result.message || 'Unknown error occurred.';
+            
+            // Friendly messages for specific errors
+            if (msg.includes('duplicate key') || msg.includes('unique constraint')) {
+                if (msg.includes('employee_code')) {
+                    msg = '⚠️ Cannot generate a unique employee code for this admin. Please try again with a different username.';
+                } else if (msg.includes('username')) {
+                    msg = '⚠️ This admin username is already taken. Please choose a different one.';
+                } else if (msg.includes('business_code')) {
+                    msg = '⚠️ Could not generate a unique business code. Please try again.';
+                } else {
+                    msg = '⚠️ A duplicate entry already exists in the system. Please try a different username.';
+                }
+            } else if (msg.includes('foreign key')) {
+                msg = '⚠️ Database reference error. Please contact support.';
+            } else if (msg.includes('Could not generate')) {
+                msg = '⚠️ ' + msg;
+            }
+            
+            alert('❌ ' + msg);
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        console.error('Submit approve error:', err);
+        alert('❌ Network error: ' + err.message);
+    }
+}
+async function rejectReg(id) {
+    const reason = prompt('❌ Rejection reason:');
+    if (reason === null) return;
+
+    try {
+        const res = await fetch(`/api/super-admin/business-registrations/${id}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason })
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ Registration rejected.');
+            loadRegistrations();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setFilter('Pending');
+    // Refresh tab counts every 30s
+    setInterval(updateTabCounts, 30000);
+});
+</script>
+{% endblock %}

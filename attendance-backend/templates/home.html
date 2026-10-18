@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <span class="brand-text">Dutipay</span>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="home-navbar">
+<div class="nav-brand">
+    <img src="{{ url_for('static', filename='images/DOG.png') }}"
+         alt="Dutipay" class="home-nav-logo">
+</div>
+        <div class="nav-links">
+    <a href="#about">About</a>
+    <a href="#why-it-works">Features</a>
+    <a href="#credits">Team</a>
+    <a href="#contact">Contact</a>
+</div>
+        </div>
+        <div class="nav-actions">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+            <a href="/login" class="btn-outline">Login</a>
+            <a href="/register" class="btn-primary">Register Business</a>
+        </div>
+    </nav>
+
+    <!-- ==================== HERO SECTION ==================== -->
+    <section class="hero-about">
+        <div class="hero-about-bg"></div>
+        <div class="hero-about-overlay"></div>
+        <div class="hero-about-content">
+            
+<div class="hero-tagline-badge">
+    <span class="tagline-word">Track time</span>
+    <span class="tagline-sep">·</span>
+    <span class="tagline-word">Pay right</span>
+</div>
+
+            <h1>About Dutipay</h1>
+
+<p class="hero-tagline">
+    Track time. <strong>Pay right.</strong>
+</p>
+
+            <p class="hero-description">
+                A modern attendance and payroll system for businesses of any size. 
+                Streamline workforce operations with QR-based attendance tracking 
+                and automated payroll — customized to fit your business needs.
+            </p>
+
+            <a href="#about" class="btn-hero-about">
+                See More <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- ==================== ABOUT SECTION ==================== -->
+    <section class="about-main" id="about">
+        <div class="section-header-center">
+            <h2>Helping Businesses Achieve Success</h2>
+            <div class="heading-underline"></div>
+        </div>
+
+        <div class="about-row">
+            <div class="about-image-wrap">
+                <div class="image-blob blob-green"></div>
+                <div class="image-circle">
+                    <img src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&q=80" 
+                         alt="Team working together" 
+                         loading="lazy">
+                </div>
+                <span class="deco-dot dot-1"></span>
+                <span class="deco-dot dot-2"></span>
+                <span class="deco-dot dot-3"></span>
+            </div>
+            <div class="about-text">
+                <h3>Empowering Business Owners with Smart Tools</h3>
+                <p>
+                    Dutipay  simplifies workforce management for businesses of all types — 
+                    from retail to service, construction to hospitality, and yes, even 
+                    agriculture. Manage attendance, compute payroll, and grow your team 
+                    with confidence.
+                </p>
+                <a href="/register" class="btn-view-more">View More</a>
+            </div>
+        </div>
+
+        <div class="about-row reverse">
+            <div class="about-text">
+                <h3>Streamlined Attendance Tracking</h3>
+                <p>
+                    QR-based check-in and check-out. No more manual DTR forms, no more 
+                    buddy punching. Just fast, accurate, and contactless attendance 
+                    tracking for your team — whether they work in an office, a store, 
+                    or out in the field.
+                </p>
+                <a href="/register" class="btn-view-more">View More</a>
+            </div>
+            <div class="about-image-wrap">
+                <div class="image-blob blob-gold"></div>
+                <div class="image-circle">
+                    <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80" 
+                         alt="Team collaboration" 
+                         loading="lazy">
+                </div>
+                <span class="deco-dot dot-1"></span>
+                <span class="deco-dot dot-2"></span>
+                <span class="deco-dot dot-3"></span>
+            </div>
+        </div>
+
+        <div class="about-row">
+            <div class="about-image-wrap">
+                <div class="image-blob blob-olive"></div>
+                <div class="image-circle">
+                    <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80" 
+                         alt="Business meeting" 
+                         loading="lazy">
+                </div>
+                <span class="deco-dot dot-1"></span>
+                <span class="deco-dot dot-2"></span>
+                <span class="deco-dot dot-3"></span>
+            </div>
+            <div class="about-text">
+                <h3>Automated Payroll in Seconds</h3>
+                <p>
+                    One click and payroll is done. Automatic computation based on days 
+                    worked, with printable payslips and easy tracking of payments. 
+                    No more late nights computing salaries — spend your time growing 
+                    your business instead.
+                </p>
+                <a href="/register" class="btn-view-more">View More</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== TEAM SECTION ==================== -->
+    <section class="team-section" id="credits">
+        <div class="section-header-center">
+            <h2>The Team</h2>
+            <div class="heading-underline"></div>
+        </div>
+
+        <div class="team-carousel">
+            <button class="carousel-arrow carousel-prev" onclick="scrollTeam(-1)">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <div class="team-cards" id="teamCards">
+                <!-- Team Member 1 — Lead Developer -->
+                <div class="team-card">
+                    <div class="team-photo-wrap">
+                        <img src="{{ url_for('static', filename='images/team/dev.jpg') }}" 
+                             alt="Yee, King Harold A.">
+                    </div>
+                    <div class="team-name-banner">
+                        <span>Yee, King Harold A.</span>
+                    </div>
+                    <p class="team-role">Lead Developer</p>
+                    <p class="team-desc">Full-stack developer responsible for backend architecture and system integration.</p>
+                    <div class="team-socials">
+                        <a href="https://github.com/Zekieeyee" target="_blank" title="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="https://www.facebook.com/agravante.yee/" target="_blank" title="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="mailto:Kingyeee74@gmail.com" title="Email"><i class="fas fa-envelope"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 2 — Featured (UI/UX Designer) -->
+                <div class="team-card featured">
+                    <div class="team-photo-wrap">
+                        <img src="{{ url_for('static', filename='images/team/niga.jpeg') }}" 
+                             alt="Zachary Zidane Del Rosario">
+                    </div>
+                    <div class="team-name-banner">
+                        <span>Zachary Zidane Del Rosario</span>
+                    </div>
+                    <p class="team-role">UI/UX Designer</p>
+                    <p class="team-desc">Designed the user interface and user experience for the entire system.</p>
+                    <div class="team-socials">
+                        <a href="#" title="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="https://www.facebook.com/Zachary.Zidane02" target="_blank" title="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" title="Email"><i class="fas fa-envelope"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 3 — Frontend Developer -->
+                <div class="team-card">
+                    <div class="team-photo-wrap">
+                        <div class="team-photo-placeholder">👩‍💻</div>
+                    </div>
+                    <div class="team-name-banner">
+                        <span>Team Member 3</span>
+                    </div>
+                    <p class="team-role">Frontend Developer</p>
+                    <p class="team-desc">Built the responsive frontend and interactive components of the system.</p>
+                    <div class="team-socials">
+                        <a href="#" title="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="#" title="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" title="Email"><i class="fas fa-envelope"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 4 — QA & Testing -->
+                <div class="team-card">
+                    <div class="team-photo-wrap">
+                        <div class="team-photo-placeholder">👨‍🔬</div>
+                    </div>
+                    <div class="team-name-banner">
+                        <span>Team Member 4</span>
+                    </div>
+                    <p class="team-role">QA & Testing</p>
+                    <p class="team-desc">Ensured the system is bug-free and works as intended.</p>
+                    <div class="team-socials">
+                        <a href="#" title="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="#" title="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" title="Email"><i class="fas fa-envelope"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <button class="carousel-arrow carousel-next" onclick="scrollTeam(1)">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <div class="mobile-scroll-hint">
+            <i class="fas fa-arrows-alt-h"></i> Swipe to see more team members
+        </div>
+    </section>
+
+    <!-- ==================== WHY IT WORKS SECTION ==================== -->
+    <section class="why-section" id="why-it-works">
+    <div class="section-header-center">
+        <h2>Why It Works</h2>
+            <div class="heading-underline"></div>
+        </div>
+
+        <div class="why-grid">
+            <div class="why-card">
+                <div class="why-icon">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <h3>Fast & Accurate</h3>
+                <p>
+                    QR-based attendance eliminates manual errors and speeds up 
+                    daily check-in/check-out for your whole team.
+                </p>
+            </div>
+
+            <div class="why-card">
+                <div class="why-icon">
+                    <i class="fas fa-shield-halved"></i>
+                </div>
+                <h3>Trusted & Secure</h3>
+                <p>
+                    Role-based access, per-business data isolation, and encrypted 
+                    credentials keep your business information safe.
+                </p>
+            </div>
+
+            <div class="why-card">
+                <div class="why-icon">
+                    <i class="fas fa-sliders"></i>
+                </div>
+                <h3>Fully Customizable</h3>
+                <p>
+                    Configure schedules, attendance rules, and payroll preferences 
+                    to match the way your business actually operates.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== CTA SECTION ==================== -->
+    <section class="cta-section" id="contact">
+        <div class="cta-content">
+            <p class="cta-tagline">
+                <strong>Track time.</strong> Pay right.            </p>
+            <h2>Ready to Modernize Your Business?</h2>
+            <p>Join businesses already using FarmSync to streamline their operations.</p>
+            <div class="cta-actions">
+                <a href="/register" class="btn-cta-primary">
+                    <i class="fas fa-user-plus"></i> Create Free Account
+                </a>
+                <a href="/register" class="btn-cta-primary">
+                    <i class="fas fa-sign-in-alt"></i> Register Your Business
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="home-footer">
+        <div class="footer-content">
+<div class="footer-brand">
+    <img src="{{ url_for('static', filename='images/DOG.png') }}"
+         alt="Dutipay" style="height: 48px; width: auto; margin-bottom: 8px;">
+    <p class="footer-tagline">Track time. Pay right.</p>
+    <p style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+        © 2026 <strong>Dutipay</strong>. All rights reserved.
+    </p>
+</div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <a href="#features">Features</a>
+                    <a href="#how-it-works">How It Works</a>
+                    <a href="#about">About</a>
+                    <a href="#credits">Team</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Support</h4>
+                    <a href="#contact">Contact</a>
+                    <a href="#">Documentation</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="footer-column">
+    <h4>Legal</h4>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/terms">Terms of Service</a>
+    <a href="mailto:support@farmsync.app">Email Support</a>
+</div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Dutipay. All rights reserved. | Track time. Pay right.</p>
+        </div>
+    </footer>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeIcon(next);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            updateThemeIcon(savedTheme);
+        });
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        function scrollTeam(direction) {
+            const container = document.getElementById('teamCards');
+            if (container) {
+                const cardWidth = container.querySelector('.team-card').offsetWidth + 24;
+                container.scrollBy({
+                    left: direction * cardWidth,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    </script>
+</body>
+</html>

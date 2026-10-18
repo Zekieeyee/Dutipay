@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 Audit Logs</h1>
+    <p class="subtitle">Track all sensitive actions in your business</p>
+</div>
+
+<!-- FILTER CARD -->
+<div class="card">
+    <div class="card-header">
+        <h3>🔍 Filters</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>From Date</label>
+                <input type="date" id="filterDateFrom">
+            </div>
+            <div class="form-group">
+                <label>To Date</label>
+                <input type="date" id="filterDateTo">
+            </div>
+            <div class="form-group">
+                <label>Action</label>
+                <select id="filterAction">
+                    <option value="">All actions</option>
+                </select>
+            </div>
+            <div class="form-group" style="display: flex; gap: 8px; align-items: flex-end;">
+                <button class="btn btn-primary" onclick="loadAuditLogs()">
+                    <i class="fas fa-search"></i> Apply
+                </button>
+                <button class="btn btn-secondary" onclick="resetFilters()">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOGS TABLE -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Recent Activity</h3>
+        <span class="badge badge-info" id="logCount">0 records</span>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>When</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody id="auditTableBody">
+                <tr>
+                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">
+                        Loading...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const userRole = "{{ role|lower }}";
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+
+function formatDateTime(iso) {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleString('en-PH', {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+            timeZone: 'Asia/Manila'
+        });
+    } catch (e) { return iso; }
+}
+
+function actionBadge(action) {
+    const colors = {
+        'auth.login_success': 'success',
+        'auth.logout': 'info',
+        'auth.password_reset_self': 'warning',
+        'employee.updated': 'warning',
+        'employee.password_reset': 'danger',
+        'employee.status_changed': 'warning',
+        'payroll.generated': 'success',
+        'payroll.received': 'success',
+        'worker_request.approved': 'success',
+        'worker_request.rejected': 'danger',
+        'business.code_regenerated': 'warning',
+        'admin.created': 'success'
+    };
+    const cls = colors[action] || 'info';
+    return `<span class="badge badge-${cls}">${escapeHtml(action)}</span>`;
+}
+
+function formatDetails(details) {
+    if (!details) return '—';
+    if (typeof details !== 'object') return escapeHtml(String(details));
+    
+    try {
+        // Compact display — key:value pairs
+        const parts = Object.entries(details).map(([k, v]) => {
+            let val = v;
+            if (typeof v === 'object') val = JSON.stringify(v);
+            val = String(val);
+            if (val.length > 50) val = val.substring(0, 47) + '...';
+            return `<strong>${escapeHtml(k)}:</strong> ${escapeHtml(val)}`;
+        });
+        return parts.join(' · ');
+    } catch (e) {
+        return '—';
+    }
+}
+
+async function loadActions() {
+    try {
+        const res = await fetch('/api/audit-logs/actions');
+        const data = await res.json();
+        if (!data.success) return;
+        
+        const sel = document.getElementById('filterAction');
+        data.data.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a;
+            opt.textContent = a;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Load actions error:', e);
+    }
+}
+
+async function loadAuditLogs() {
+    const tbody = document.getElementById('auditTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Loading...</td></tr>';
+
+    try {
+        const params = new URLSearchParams();
+        const from = document.getElementById('filterDateFrom').value;
+        const to = document.getElementById('filterDateTo').value;
+        const action = document.getElementById('filterAction').value;
+        
+        if (from) params.append('date_from', from);
+        if (to) params.append('date_to', to);
+        if (action) params.append('action', action);
+        params.append('limit', '100');
+
+        const res = await fetch(`/api/audit-logs?${params.toString()}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--accent-red);">Error: ${escapeHtml(data.message)}</td></tr>`;
+            return;
+        }
+
+        document.getElementById('logCount').textContent = `${data.data.length} records`;
+
+        if (!data.data.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No audit logs found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.data.map(log => `
+            <tr>
+                <td style="font-size: 12px; white-space: nowrap;">${escapeHtml(formatDateTime(log.created_at))}</td>
+                <td style="font-size: 13px;">
+                    <strong>${escapeHtml(log.username)}</strong>
+                    ${log.employee_code ? `<br><small style="color: var(--text-muted);">${escapeHtml(log.employee_code)}</small>` : ''}
+                </td>
+                <td>${actionBadge(log.action)}</td>
+                <td style="font-size: 12px; color: var(--text-muted);">
+                    ${log.target_type ? `${escapeHtml(log.target_type)}` : '—'}
+                    ${log.target_id ? `<br><strong>#${escapeHtml(String(log.target_id))}</strong>` : ''}
+                </td>
+                <td style="font-size: 12px; color: var(--text-secondary); max-width: 300px;">
+                    ${formatDetails(log.details)}
+                </td>
+                <td style="font-size: 11px; color: var(--text-muted); font-family: monospace;">
+                    ${escapeHtml(log.ip_address || '—')}
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error('Load audit logs error:', e);
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--accent-red);">Error: ${escapeHtml(e.message)}</td></tr>`;
+    }
+}
+
+function resetFilters() {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    
+    document.getElementById('filterDateFrom').value = weekAgo.toISOString().split('T')[0];
+    document.getElementById('filterDateTo').value = today.toISOString().split('T')[0];
+    document.getElementById('filterAction').value = '';
+    loadAuditLogs();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Default: last 7 days
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    document.getElementById('filterDateFrom').value = weekAgo.toISOString().split('T')[0];
+    document.getElementById('filterDateTo').value = today.toISOString().split('T')[0];
+
+    loadActions();
+    loadAuditLogs();
+});
+</script>
+{% endblock %}

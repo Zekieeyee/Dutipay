@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Photos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📸 Attendance Photos</h1>
+    <p class="subtitle">View employee scan photos (Admin/Manager only)</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>🔍 Filter</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Date:</label>
+                <input type="date" id="filterDate" value="{{ today }}">
+            </div>
+            <div class="form-group">
+                <button class="btn btn-primary" onclick="loadPhotos()">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Attendance Records</h3>
+    </div>
+    <div class="card-body">
+        <div id="photosGrid" class="photos-grid">
+            <div style="text-align: center; padding: 40px;">
+                <div class="spinner spinner-large"></div>
+                <p style="margin-top: 16px; color: var(--text-muted);">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.photo-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+}
+
+.photo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--primary);
+}
+
+.photo-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+    background: var(--bg-card);
+}
+
+.photo-placeholder {
+    width: 100%;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 48px;
+}
+
+.photo-info {
+    padding: 16px;
+}
+
+.photo-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.photo-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.photo-device {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    background: var(--bg-card);
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+}
+
+.photo-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.no-photos {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    grid-column: 1 / -1;
+}
+
+.no-photos i {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+    display: block;
+}
+</style>
+
+<script>
+async function loadPhotos() {
+    const date = document.getElementById('filterDate').value;
+    const grid = document.getElementById('photosGrid');
+
+    grid.innerHTML = `
+        <div style="text-align: center; padding: 40px; grid-column: 1 / -1;">
+            <div class="spinner spinner-large"></div>
+            <p style="margin-top: 16px; color: var(--text-muted);">Loading...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`/api/attendance/photos?date=${date}`);
+        const data = await response.json();
+
+        if (!data.success || !data.data.length) {
+            grid.innerHTML = `
+                <div class="no-photos">
+                    <i class="fas fa-camera"></i>
+                    <p>No attendance photos found for this date</p>
+                </div>
+            `;
+            return;
+        }
+
+        grid.innerHTML = data.data.map(record => `
+            <div class="photo-card">
+                ${record.photo_url
+                    ? `<img src="${record.photo_url}" alt="${record.employee_name}">`
+                    : `<div class="photo-placeholder"><i class="fas fa-user"></i></div>`
+                }
+                <div class="photo-info">
+                    <div class="photo-name">${record.employee_name}</div>
+                    <div class="photo-time">
+                        <strong>${record.employee_code}</strong><br>
+                        In: ${record.time_in ? new Date(record.time_in).toLocaleTimeString() : '-'}<br>
+                        Out: ${record.time_out ? new Date(record.time_out).toLocaleTimeString() : '-'}
+                    </div>
+                    ${record.device_info ? `
+                        <div class="photo-device">
+                            <i class="fas fa-mobile-alt"></i> ${record.device_info}
+                        </div>
+                    ` : ''}
+                    <div class="photo-badges">
+                        <span class="badge ${record.status === 'Late' ? 'badge-warning' : 'badge-success'}">
+                            ${record.status}
+                        </span>
+                        ${record.late_minutes > 0 ? `
+                            <span class="badge badge-danger">${record.late_minutes}m late</span>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        grid.innerHTML = `<p style="color: var(--accent-red); grid-column: 1 / -1;">Error: ${error.message}</p>`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadPhotos);
+</script>
+{% endblock %}

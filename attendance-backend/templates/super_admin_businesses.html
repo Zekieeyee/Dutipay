@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}All Businesses{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏢 All Businesses</h1>
+    <p class="subtitle">Manage every business registered on FarmSync</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Businesses</h3>
+        <span class="badge badge-info" id="countLabel">0</span>
+    </div>
+    <div class="card-body">
+        <div style="position:relative;margin-bottom:18px;">
+            <i class="fas fa-search" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-muted);"></i>
+            <input 
+                type="text" 
+                id="bizSearch" 
+                placeholder="Search business name, owner email, or admin username..." 
+                autocomplete="off"
+                style="width:100%;padding:14px 44px 14px 44px;border:2px solid var(--border);border-radius:12px;font-size:14px;background:var(--bg-card);color:var(--text-primary);font-family:inherit;"
+            >
+            <button 
+                id="clearSearchBtn"
+                type="button"
+                onclick="clearSearch()"
+                style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--bg-secondary);border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;color:var(--text-secondary);font-size:12px;"
+            >
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div id="searchResultsInfo" style="display:none;font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+            <i class="fas fa-filter"></i> <span id="resultsText"></span>
+        </div>
+
+        <div id="bizList">
+            <p style="text-align:center;color:var(--text-muted);">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<div id="createAdminModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header">
+            <h3>👤 Create Admin Account</h3>
+            <button class="modal-close" onclick="closeAdminModal()">&times;</button>
+        </div>
+        <form onsubmit="submitCreateAdmin(event)">
+            <input type="hidden" id="createAdminFarmId">
+            <div style="padding:0 24px;">
+                <div class="alert alert-info" style="margin-bottom:16px; font-size:13px;">
+                    <i class="fas fa-magic"></i>
+                    <span>Details are auto-filled from the business registration. A <strong>random secure password</strong> will be generated and emailed to the admin.</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name *</label>
+                        <input type="text" id="cafFirst" required readonly style="background: var(--bg-secondary); cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name *</label>
+                        <input type="text" id="cafLast" required readonly style="background: var(--bg-secondary); cursor: not-allowed;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="cafEmail" required readonly style="background: var(--bg-secondary); cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Username *</label>
+                    <input type="text" id="cafUsername" required readonly style="background: var(--bg-secondary); cursor: not-allowed;">
+                </div>
+                <div class="alert alert-success" style="margin-top:16px; font-size:13px;">
+                    <i class="fas fa-shield-alt"></i>
+                    <span><strong>Security:</strong> A random password (12 characters, mixed case + digits + symbols) will be generated. The admin will receive it via email.</span>
+                </div>
+            </div>
+            <div class="modal-actions" style="padding:24px;">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="createAdminBtn">
+                    <i class="fas fa-user-plus"></i> Create Admin
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+var allBusinesses = [];
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function(m) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+    });
+}
+
+function loadBusinesses() {
+    var container = document.getElementById('bizList');
+    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Loading...</p>';
+
+    fetch('/api/super-admin/businesses')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            allBusinesses = data.data || [];
+            document.getElementById('countLabel').textContent = allBusinesses.length + ' business(es)';
+            renderBusinesses(allBusinesses);
+        })
+        .catch(function(err) {
+            console.error('Load businesses error:', err);
+            container.innerHTML = '<p style="color:var(--accent-red);text-align:center;">Error: ' + escapeHtml(err.message) + '</p>';
+        });
+}
+
+function renderBusinesses(businesses) {
+    var container = document.getElementById('bizList');
+
+    if (!businesses || !businesses.length) {
+        container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><i class="fas fa-search" style="font-size:48px;opacity:0.3;margin-bottom:12px;display:block;"></i><p>No businesses found.</p></div>';
+        return;
+    }
+
+    var html = '';
+    for (var i = 0; i < businesses.length; i++) {
+        var b = businesses[i];
+        var name = escapeHtml(b.display_name || b.farm_name || 'Unnamed Business');
+        var email = escapeHtml(b.owner_email || '—');
+        var empCount = b.employee_count || 0;
+        
+        var adminsHtml = '';
+        if (b.admins && b.admins.length) {
+            adminsHtml = b.admins.map(function(a) {
+                return '<span class="badge badge-info" style="margin-right:4px;">' + escapeHtml(a.username || '') + '</span>';
+            }).join('');
+        } else {
+            adminsHtml = '<span style="color:var(--text-muted);font-size:12px;">No admin accounts yet.</span>';
+        }
+
+        html += '<div style="padding:16px;border:1px solid var(--border);border-radius:10px;margin-bottom:12px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">';
+        html += '<div><h4 style="margin:0 0 4px;font-size:16px;">' + name + '</h4><small style="color:var(--text-muted);">' + email + '</small></div>';
+        html += '<div style="text-align:right;"><div style="font-size:20px;font-weight:700;color:var(--primary);">' + empCount + '</div><small style="color:var(--text-muted);font-size:11px;">employees</small></div>';
+        html += '</div>';
+        html += '<div style="font-size:13px;color:var(--text-secondary);margin-top:8px;"><strong>Admin Accounts:</strong> ' + adminsHtml + '</div>';
+        html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">';
+        html += '<button class="btn btn-sm btn-primary" onclick="openCreateAdmin(' + b.id + ')"><i class="fas fa-user-plus"></i> Add Admin</button>';
+        html += '</div></div>';
+    }
+    container.innerHTML = html;
+}
+
+function filterBusinesses() {
+    var q = (document.getElementById('bizSearch').value || '').trim().toLowerCase();
+    var clearBtn = document.getElementById('clearSearchBtn');
+    var info = document.getElementById('searchResultsInfo');
+    var text = document.getElementById('resultsText');
+
+    if (!q) {
+        clearBtn.style.display = 'none';
+        info.style.display = 'none';
+        renderBusinesses(allBusinesses);
+        return;
+    }
+
+    clearBtn.style.display = 'block';
+
+    var filtered = allBusinesses.filter(function(b) {
+        var name = (b.display_name || b.farm_name || '').toLowerCase();
+        var email = (b.owner_email || '').toLowerCase();
+        var admins = (b.admins || []).map(function(a) { return (a.username || '').toLowerCase(); }).join(' ');
+        return name.indexOf(q) !== -1 || email.indexOf(q) !== -1 || admins.indexOf(q) !== -1;
+    });
+
+    info.style.display = 'block';
+    text.textContent = 'Showing ' + filtered.length + ' of ' + allBusinesses.length + ' result(s) for "' + q + '"';
+    renderBusinesses(filtered);
+}
+
+function clearSearch() {
+    document.getElementById('bizSearch').value = '';
+    filterBusinesses();
+    document.getElementById('bizSearch').focus();
+}
+
+async function openCreateAdmin(farmId) {
+    document.getElementById('createAdminFarmId').value = farmId;
+    
+    // Clear fields first
+    ['cafFirst', 'cafLast', 'cafEmail', 'cafUsername'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    // Find the business data from cached list
+    const biz = allBusinesses.find(b => b.id === farmId);
+    
+    if (biz) {
+        // Auto-fill from farm data
+        const email = biz.owner_email || '';
+        
+        // Try to extract first/last from registration data first (most reliable)
+        let firstName = biz.registration_first_name || '';
+        let lastName = biz.registration_last_name || '';
+        
+        // Fallback: try to parse from owner_email
+        if (!firstName && email) {
+            const localPart = email.split('@')[0];
+            const parts = localPart.split(/[._-]/);
+            if (parts.length >= 2) {
+                firstName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+                lastName = parts.slice(1).join(' ').replace(/\b\w/g, c => c.toUpperCase());
+            } else {
+                firstName = localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase();
+            }
+        }
+        
+        document.getElementById('cafEmail').value = email;
+        document.getElementById('cafFirst').value = firstName;
+        document.getElementById('cafLast').value = lastName;
+        
+        // Auto-generate username suggestion from email
+        if (email) {
+            const base = email.split('@')[0]
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 20);
+            document.getElementById('cafUsername').value = base || 'admin';
+        } else {
+            // Fallback: use business name
+            const displayName = biz.display_name || biz.farm_name || '';
+            const base = displayName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 20);
+            document.getElementById('cafUsername').value = (base || 'admin') + '_admin';
+        }
+    }
+    
+    document.getElementById('createAdminModal').style.display = 'flex';
+}
+function closeAdminModal() {
+    document.getElementById('createAdminModal').style.display = 'none';
+}
+
+function submitCreateAdmin(e) {
+    e.preventDefault();
+    var farmId = document.getElementById('createAdminFarmId').value;
+    var payload = {
+        first_name: document.getElementById('cafFirst').value.trim(),
+        last_name: document.getElementById('cafLast').value.trim(),
+        email: document.getElementById('cafEmail').value.trim(),
+        username: document.getElementById('cafUsername').value.trim().toLowerCase()
+    };
+
+    // ✅ Client-side pre-validation (server validates too)
+    if (!payload.first_name || !payload.last_name || !payload.email || !payload.username) {
+        alert('❌ Please fill in all fields.');
+        return;
+    }
+
+    var btn = document.getElementById('createAdminBtn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+    fetch('/api/super-admin/businesses/' + farmId + '/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        if (result.success) {
+            // ✅ Accurate email status message
+            let emailLine = '';
+            if (result.email_sent) {
+                emailLine = '📧 Credentials emailed to: ' + result.email_target;
+            } else {
+                emailLine = '⚠️ Email NOT sent' + (result.email_error ? ' (' + result.email_error + ')' : '') +
+                            '\nPlease give the credentials to the admin manually.';
+            }
+
+            alert(
+                '✅ Admin account created!\n\n' +
+                '━━━━━━━━━━━━━━━━━━━━\n' +
+                'Business: ' + result.business_name + '\n' +
+                'Full Name: ' + result.full_name + '\n' +
+                'Username: ' + result.username + '\n' +
+                'Temp Password: ' + result.password + '\n' +
+                'Employee Code: ' + result.employee_code + '\n' +
+                '━━━━━━━━━━━━━━━━━━━━\n\n' +
+                emailLine + '\n\n' +
+                '⚠️ The admin must change this password on first login.'
+            );
+            closeAdminModal();
+            loadBusinesses();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        alert('❌ Error: ' + err.message);
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    loadBusinesses();
+
+    document.getElementById('bizSearch').addEventListener('input', filterBusinesses);
+
+    document.addEventListener('keydown', function(e) {
+        var tag = document.activeElement.tagName;
+        if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+            e.preventDefault();
+            document.getElementById('bizSearch').focus();
+        }
+    });
+});
+</script>
+{% endblock %}

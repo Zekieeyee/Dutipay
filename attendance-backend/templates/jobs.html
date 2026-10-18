@@ -1,0 +1,766 @@
+{% extends "base.html" %}
+
+{% block title %}Job Postings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💼 Job Postings</h1>
+    <p class="subtitle">Manage job openings and applications</p>
+</div>
+
+<!-- PENDING APPLICATIONS (Admin) -->
+{% if role == 'Admin' %}
+<div class="card" id="pendingApplicationsCard" style="display: none;">
+    <div class="card-header" style="background: rgba(233, 196, 106, 0.1);">
+        <h3>⏳ Pending Applications <span class="badge badge-warning" id="pendingAppCount">0</span></h3>
+    </div>
+    <div class="card-body">
+        <div id="applicationsList"></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- JOB LISTINGS -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Job Openings</h3>
+        {% if role == 'Admin' %}
+        <button class="btn btn-primary" onclick="openJobModal()">
+            <i class="fas fa-plus"></i> Post New Job
+        </button>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div id="jobsList" class="jobs-grid">
+            <p style="text-align: center; color: var(--text-muted); grid-column: 1 / -1;">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Create Job Modal (Admin) -->
+<div id="jobModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>💼 Post New Job</h3>
+            <button class="modal-close" onclick="closeJobModal()">&times;</button>
+        </div>
+        <form id="jobForm" onsubmit="saveJob(event)" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Job Title *</label>
+                <input type="text" id="jobTitle" required placeholder="e.g., Farm Worker">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="jobDescription" rows="3" placeholder="Job description..." style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%;"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Schedule In</label>
+                    <input type="time" id="jobScheduleIn" value="08:00">
+                </div>
+                <div class="form-group">
+                    <label>Schedule Out</label>
+                    <input type="time" id="jobScheduleOut" value="17:00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Basic Salary (₱)</label>
+                    <input type="number" id="jobSalary" placeholder="15000" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Slots Available</label>
+                    <input type="number" id="jobSlots" value="1" min="1">
+                </div>
+            </div>
+
+            <!-- ✅ ATTACHMENT UPLOAD -->
+            <div class="form-group">
+                <label>📎 Job Attachment (Optional)</label>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="jobAttachment" 
+                           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt">
+                    <label for="jobAttachment" class="file-upload-label">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span id="jobFileLabel">Click to upload attachment (PDF, DOC, Image, etc.)</span>
+                    </label>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+                    Accepted: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, TXT (Max 10MB)
+                </p>
+                <div id="jobFilePreview" class="file-preview" style="display: none;">
+                    <i class="fas fa-file"></i>
+                    <span id="jobFileName"></span>
+                    <button type="button" class="file-remove" onclick="removeJobAttachment()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeJobModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-success" id="jobSaveBtn">
+                    <i class="fas fa-save"></i> Post Job
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Apply Modal (Manager) -->
+<div id="applyModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📤 Apply Worker</h3>
+            <button class="modal-close" onclick="closeApplyModal()">&times;</button>
+        </div>
+        <form id="applyForm" onsubmit="submitApplication(event)" enctype="multipart/form-data">
+            <input type="hidden" id="applyJobId">
+            
+            <div class="alert alert-info" style="margin-bottom: 20px; font-size: 13px;">
+                <i class="fas fa-info-circle"></i>
+                <span>Submit worker details + resume. Admin will review for interview.</span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" id="appFirstName" required placeholder="Juan">
+                </div>
+                <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" id="appLastName" required placeholder="Dela Cruz">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="appEmail" placeholder="juan@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="appPhone" placeholder="09123456789">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Expected Salary (₱) *</label>
+                <input type="number" id="appExpectedSalary" required placeholder="15000" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label>Resume / CV (PDF/Image) *</label>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="appResume" accept=".pdf,.jpg,.jpeg,.png" required>
+                    <label for="appResume" class="file-upload-label">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span id="fileLabel">Click to upload resume</span>
+                    </label>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Accepted: PDF, JPG, PNG (Max 5MB)</p>
+            </div>
+
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="appNotes" rows="2" placeholder="Additional notes..." style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%;"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeApplyModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-warning" id="applyBtn">
+                    <i class="fas fa-paper-plane"></i> Submit Application
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.jobs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.job-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    transition: all 0.3s;
+}
+
+.job-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--primary);
+}
+
+.job-card h4 {
+    font-size: 16px;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.job-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.job-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.job-meta span i {
+    color: var(--primary);
+    width: 16px;
+    margin-right: 6px;
+}
+
+.job-attachment-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(74, 124, 89, 0.1);
+    color: var(--primary);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 12px;
+    border: 1px solid rgba(74, 124, 89, 0.2);
+    transition: all 0.2s;
+    word-break: break-all;
+}
+
+.job-attachment-link:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.job-attachment-link i {
+    flex-shrink: 0;
+}
+
+.job-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.application-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.file-upload-wrapper {
+    position: relative;
+}
+
+.file-upload-wrapper input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+}
+
+.file-upload-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.file-upload-label:hover {
+    border-color: var(--primary);
+    background: var(--bg-secondary);
+    color: var(--primary);
+}
+
+.file-upload-label i {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+/* ✅ File Preview */
+.file-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(74, 124, 89, 0.08);
+    border: 1px solid rgba(74, 124, 89, 0.2);
+    border-radius: 10px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.file-preview i.fa-file {
+    color: var(--primary);
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.file-preview span {
+    flex: 1;
+    word-break: break-all;
+    font-weight: 500;
+}
+
+.file-remove {
+    background: rgba(196, 92, 74, 0.1);
+    color: var(--accent-red);
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.file-remove:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
+.modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 0;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 10;
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.modal form {
+    padding: 24px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+</style>
+
+<script>
+const userRole = '{{ role }}';
+let allJobs = [];
+
+// =============================================
+// LOAD JOBS
+// =============================================
+async function loadJobs() {
+    try {
+        const res = await fetch('/api/jobs');
+        const data = await res.json();
+        const container = document.getElementById('jobsList');
+
+        if (!data.success || !data.data.length) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); grid-column: 1 / -1;">No job postings yet.</p>';
+            return;
+        }
+
+        allJobs = data.data;
+
+        container.innerHTML = data.data.map(job => `
+            <div class="job-card">
+                <h4>${escapeHtml(job.job_title)}</h4>
+                <p>${escapeHtml(job.description || 'No description')}</p>
+                <div class="job-meta">
+                    <span><i class="fas fa-clock"></i> ${job.schedule_in} - ${job.schedule_out}</span>
+                    <span><i class="fas fa-money-bill"></i> ₱${parseFloat(job.basic_salary || 0).toLocaleString()}</span>
+                    <span><i class="fas fa-users"></i> ${job.slots_filled || 0}/${job.slots_available} slots filled</span>
+                    <span><i class="fas fa-circle"></i> ${job.status}</span>
+                </div>
+                
+                ${job.attachment_url ? `
+                    <a href="${job.attachment_url}" target="_blank" class="job-attachment-link">
+                        <i class="fas fa-paperclip"></i>
+                        ${escapeHtml(job.attachment_filename || 'View Attachment')}
+                    </a>
+                ` : ''}
+                
+                <div class="job-actions">
+                    ${userRole === 'Manager' ? `
+                        <button class="btn btn-sm btn-warning" onclick="openApplyModal(${job.id})">
+                            <i class="fas fa-paper-plane"></i> Apply Worker
+                        </button>
+                    ` : ''}
+                    ${userRole === 'Admin' ? `
+                        <button class="btn btn-sm btn-danger" onclick="deleteJob(${job.id})">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// =============================================
+// CREATE JOB
+// =============================================
+function openJobModal() {
+    document.getElementById('jobForm').reset();
+    document.getElementById('jobScheduleIn').value = '08:00';
+    document.getElementById('jobScheduleOut').value = '17:00';
+    document.getElementById('jobSlots').value = 1;
+    document.getElementById('jobFileLabel').textContent = 'Click to upload attachment (PDF, DOC, Image, etc.)';
+    document.getElementById('jobFilePreview').style.display = 'none';
+    document.getElementById('jobModal').style.display = 'flex';
+}
+
+function closeJobModal() {
+    document.getElementById('jobModal').style.display = 'none';
+}
+
+async function saveJob(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('job_title', document.getElementById('jobTitle').value);
+    formData.append('description', document.getElementById('jobDescription').value);
+    formData.append('schedule_in', document.getElementById('jobScheduleIn').value + ':00');
+    formData.append('schedule_out', document.getElementById('jobScheduleOut').value + ':00');
+    formData.append('basic_salary', document.getElementById('jobSalary').value || 0);
+    formData.append('slots_available', document.getElementById('jobSlots').value || 1);
+    
+    const attachmentFile = document.getElementById('jobAttachment').files[0];
+    if (attachmentFile) {
+        if (attachmentFile.size > 10 * 1024 * 1024) {
+            alert('❌ File too large. Max 10MB.');
+            return;
+        }
+        formData.append('attachment', attachmentFile);
+    }
+
+    try {
+        const btn = document.getElementById('jobSaveBtn');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+
+        const res = await fetch('/api/jobs', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+
+        if (result.success) {
+            alert('✅ ' + result.message);
+            closeJobModal();
+            loadJobs();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+async function deleteJob(jobId) {
+    if (!confirm('⚠️ Delete this job posting?')) return;
+    
+    try {
+        const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ Job deleted');
+            loadJobs();
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// FILE UPLOAD HANDLERS
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+    // Job attachment preview
+    const jobFileInput = document.getElementById('jobAttachment');
+    if (jobFileInput) {
+        jobFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('❌ File too large. Max 10MB.');
+                    e.target.value = '';
+                    return;
+                }
+                document.getElementById('jobFileLabel').textContent = file.name;
+                document.getElementById('jobFileName').textContent = file.name;
+                document.getElementById('jobFilePreview').style.display = 'flex';
+            }
+        });
+    }
+
+    // Resume preview
+    const fileInput = document.getElementById('appResume');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Click to upload resume';
+            document.getElementById('fileLabel').textContent = fileName;
+        });
+    }
+});
+
+function removeJobAttachment() {
+    document.getElementById('jobAttachment').value = '';
+    document.getElementById('jobFileLabel').textContent = 'Click to upload attachment (PDF, DOC, Image, etc.)';
+    document.getElementById('jobFilePreview').style.display = 'none';
+}
+
+// =============================================
+// APPLY FOR JOB (Manager)
+// =============================================
+function openApplyModal(jobId) {
+    document.getElementById('applyForm').reset();
+    document.getElementById('applyJobId').value = jobId;
+    document.getElementById('fileLabel').textContent = 'Click to upload resume';
+    document.getElementById('applyModal').style.display = 'flex';
+}
+
+function closeApplyModal() {
+    document.getElementById('applyModal').style.display = 'none';
+}
+
+async function submitApplication(e) {
+    e.preventDefault();
+    
+    if (!confirm('📤 Submit this application to the farm owner?')) return;
+    
+    const formData = new FormData();
+    formData.append('job_id', document.getElementById('applyJobId').value);
+    formData.append('first_name', document.getElementById('appFirstName').value);
+    formData.append('last_name', document.getElementById('appLastName').value);
+    formData.append('email', document.getElementById('appEmail').value);
+    formData.append('phone', document.getElementById('appPhone').value);
+    formData.append('expected_salary', document.getElementById('appExpectedSalary').value);
+    formData.append('notes', document.getElementById('appNotes').value);
+    
+    const resumeFile = document.getElementById('appResume').files[0];
+    if (resumeFile) {
+        if (resumeFile.size > 5 * 1024 * 1024) {
+            alert('❌ Resume too large. Max 5MB.');
+            return;
+        }
+        formData.append('resume', resumeFile);
+    }
+    
+    try {
+        const btn = document.getElementById('applyBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        
+        const res = await fetch('/api/applications', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await res.json();
+        
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (result.success) {
+            alert('✅ ' + result.message);
+            closeApplyModal();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// LOAD APPLICATIONS (Admin)
+// =============================================
+async function loadApplications() {
+    if (userRole !== 'Admin') return;
+    
+    try {
+        const res = await fetch('/api/applications');
+        const data = await res.json();
+        
+        const pending = data.data.filter(a => a.status === 'Pending');
+        
+        if (pending.length === 0) {
+            document.getElementById('pendingApplicationsCard').style.display = 'none';
+            return;
+        }
+        
+        document.getElementById('pendingApplicationsCard').style.display = 'block';
+        document.getElementById('pendingAppCount').textContent = pending.length;
+        
+        const container = document.getElementById('applicationsList');
+        container.innerHTML = pending.map(app => `
+            <div class="application-card">
+                <h4 style="color: var(--text-primary); margin-bottom: 8px;">${escapeHtml(app.first_name)} ${escapeHtml(app.last_name)}</h4>
+                <div class="job-meta">
+                    <span><i class="fas fa-briefcase"></i> Applied for: ${escapeHtml(app.job_postings?.job_title || 'N/A')}</span>
+                    <span><i class="fas fa-envelope"></i> ${escapeHtml(app.email || 'N/A')}</span>
+                    <span><i class="fas fa-phone"></i> ${escapeHtml(app.phone || 'N/A')}</span>
+                    <span><i class="fas fa-money-bill"></i> Expected: ₱${parseFloat(app.expected_salary || 0).toLocaleString()}</span>
+                    ${app.resume_url ? `
+                        <span>
+                            <i class="fas fa-file-pdf"></i> 
+                            <a href="${app.resume_url}" target="_blank" style="color: var(--primary);">View Resume (${escapeHtml(app.resume_filename)})</a>
+                        </span>
+                    ` : '<span><i class="fas fa-file"></i> No resume</span>'}
+                    ${app.notes ? `<span><i class="fas fa-comment"></i> ${escapeHtml(app.notes)}</span>` : ''}
+                </div>
+                <div class="job-actions">
+                    <button class="btn btn-sm btn-success" onclick="approveApplication(${app.id})">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectApplication(${app.id})">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function approveApplication(appId) {
+    if (!confirm('✅ Approve this application?\n\nA worker account will be created automatically.')) return;
+    
+    try {
+        const res = await fetch(`/api/applications/${appId}/approve`, { method: 'POST' });
+        const result = await res.json();
+        
+        if (result.success) {
+            alert(`✅ Approved!\n\nEmployee Code: ${result.employee_code}\nUsername: ${result.username}\nPassword: ${result.password}`);
+            loadApplications();
+            loadJobs();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+async function rejectApplication(appId) {
+    const reason = prompt('❌ Rejection reason:');
+    if (reason === null) return;
+    
+    try {
+        const res = await fetch(`/api/applications/${appId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            alert('✅ Application rejected.');
+            loadApplications();
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// UTILITY
+// =============================================
+function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+    loadJobs();
+    loadApplications();
+});
+</script>
+{% endblock %}

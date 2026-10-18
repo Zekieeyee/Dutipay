@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Your Workplace - FarmSync</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.auth-logo {
+    max-width: 200px;
+    width: 100%;
+    height: auto;
+    margin: 0 auto 20px;
+    display: block;
+}
+        :root {
+            --bg-primary: #f8faf5;
+            --bg-card: #ffffff;
+            --primary: #4a7c59;
+            --primary-dark: #3d6647;
+            --text-primary: #2d3e2d;
+            --text-secondary: #5a6b5a;
+            --text-muted: #8a9a8a;
+            --border: #e0e7d5;
+            --accent-red: #c45c4a;
+            --accent-green: #6b8e23;
+        }
+        [data-theme="dark"] {
+            --bg-primary: #0f1a0f;
+            --bg-card: #1e2e1e;
+            --primary: #6b9e7a;
+            --primary-dark: #4a7c59;
+            --text-primary: #e8f0e0;
+            --text-secondary: #b0c0a0;
+            --text-muted: #7a8a70;
+            --border: #2a3a2a;
+            --accent-red: #e07060;
+            --accent-green: #8bb040;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 36px;
+            box-shadow: 0 20px 60px rgba(74, 124, 89, 0.15);
+            border: 1px solid var(--border);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+        .back-link:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            transform: translateX(-3px);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .header-icon {
+            font-size: 56px;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .step-section {
+            padding: 22px;
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 16px;
+            background: var(--bg-primary);
+            transition: all 0.3s;
+        }
+        .step-section.active {
+            border-color: var(--primary);
+            background: var(--bg-card);
+        }
+        .step-section.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .step-section.disabled .step-number {
+            background: var(--text-muted);
+        }
+        .step-title {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(74, 124, 89, 0.1);
+        }
+        .form-group input:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .business-confirmed {
+            background: rgba(107, 142, 35, 0.1);
+            border: 1px solid rgba(107, 142, 35, 0.3);
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+        .business-confirmed i {
+            color: var(--accent-green);
+            font-size: 20px;
+        }
+        .business-confirmed .name {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 16px rgba(74, 124, 89, 0.3);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(74, 124, 89, 0.4);
+        }
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            line-height: 1.6;
+        }
+        .alert-error {
+            background: rgba(196, 92, 74, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(196, 92, 74, 0.2);
+        }
+        .alert-success {
+            background: rgba(107, 142, 35, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(107, 142, 35, 0.2);
+        }
+        .alert-info {
+            background: rgba(74, 124, 89, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(74, 124, 89, 0.2);
+        }
+        .review-grid {
+            background: var(--bg-secondary);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .review-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 13px;
+        }
+        .review-item:last-child {
+            border-bottom: none;
+        }
+        .review-item .label {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .review-item .value {
+            color: var(--text-primary);
+            font-weight: 600;
+            text-align: right;
+            word-break: break-word;
+            max-width: 60%;
+        }
+        .success-screen {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .success-screen .icon {
+            font-size: 72px;
+            margin-bottom: 16px;
+            display: block;
+        }
+        .success-screen h2 {
+            font-size: 22px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        .success-screen p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            z-index: 2;
+        }
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: white;
+            transform: rotate(20deg);
+        }
+        @media (max-width: 480px) {
+            .card { padding: 24px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+        <i class="fas fa-moon" id="themeIcon"></i>
+    </button>
+
+    <div class="container">
+        <div class="card">
+            <a href="/login" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Login
+            </a>
+
+<div class="header">
+    <img src="{{ url_for('static', filename='images/DOG.png') }}"
+         alt="Dutipay" class="auth-logo">
+    <span class="header-icon">👋</span>
+    <h1>Join Your Workplace</h1>
+    <p>Register as an employee on Dutipay</p>
+</div>
+
+            <div id="alertBox"></div>
+
+            <!-- STEP 1 — Business Code -->
+            <div class="step-section active" id="step1">
+                <div class="step-header">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Enter your Business Code</div>
+                </div>
+                <div class="form-group">
+                    <input
+                        type="text"
+                        id="businessCode"
+                        placeholder="E.G., ABC-1234"
+                        style="text-transform: uppercase; letter-spacing: 2px; font-weight: 600; text-align: center;"
+                        autocomplete="off"
+                        oninput="autoUppercase(this)"
+                    >
+                </div>
+                <button class="btn btn-primary" id="validateBtn" onclick="validateCode()">
+                    <i class="fas fa-search"></i> Verify Business Code
+                </button>
+
+                <div class="business-confirmed" id="businessConfirmed" style="display: none;">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        Registering for:<br>
+                        <span class="name" id="confirmedBusinessName"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2 — Personal Info -->
+            <div class="step-section disabled" id="step2">
+                <div class="step-header">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Your Information</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name *</label>
+                        <input type="text" id="firstName" placeholder="Juan">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name *</label>
+                        <input type="text" id="lastName" placeholder="Dela Cruz">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="email" placeholder="juan@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone *</label>
+                        <input type="tel" id="phone" placeholder="+639123456789" maxlength="13">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Date of Birth *</label>
+                    <input type="date" id="dateOfBirth">
+                </div>
+
+                <div class="form-group">
+                    <label>Home Address *</label>
+                    <input type="text" id="address" placeholder="Your complete address">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Emergency Contact Name *</label>
+                        <input type="text" id="emergencyContactName" placeholder="Parent/Spouse name">
+                    </div>
+                    <div class="form-group">
+                        <label>Emergency Contact Phone *</label>
+                        <input type="tel" id="emergencyContactPhone" placeholder="+639123456789" maxlength="13">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" id="password" placeholder="Min 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password *</label>
+                        <input type="password" id="confirmPassword" placeholder="Re-enter password">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="reviewInfo()" style="margin-top: 10px;">
+                    <i class="fas fa-arrow-right"></i> Continue to Review
+                </button>
+            </div>
+
+            <!-- STEP 3 — Review & Confirm -->
+            <div class="step-section disabled" id="step3">
+                <div class="step-header">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Review Your Information</div>
+                </div>
+
+                <div class="alert alert-info" style="margin-bottom: 14px;">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Please review carefully. If may mali, click <strong>Edit</strong> to fix.</span>
+                </div>
+
+                <div class="review-grid" id="reviewContent">
+                    <!-- Filled by JS -->
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 18px;">
+                    <button class="btn btn-secondary" onclick="editInfo()" style="flex: 1;">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-primary" id="submitBtn" onclick="submitRegistration()" style="flex: 2;">
+                        <i class="fas fa-check"></i> Confirm & Submit
+                    </button>
+                </div>
+            </div>
+
+            <!-- SUCCESS SCREEN -->
+            <div id="successScreen" style="display: none;">
+                <div class="success-screen">
+                    <span class="icon">✅</span>
+                    <h2>Request Submitted!</h2>
+                    <p id="successMessage">
+                        Your request has been sent to <strong id="successBusinessName"></strong>.<br>
+                        You'll receive an email once your employer approves your account.
+                    </p>
+                    <div style="background: var(--bg-secondary); padding: 16px; border-radius: 12px; margin-bottom: 20px; text-align: left; font-size: 13px;">
+                        <strong style="color: var(--text-primary); display: block; margin-bottom: 8px;">
+                            <i class="fas fa-clock"></i> What happens next?
+                        </strong>
+                        <ol style="color: var(--text-secondary); padding-left: 20px; line-height: 1.8;">
+                            <li>Your employer reviews your request</li>
+                            <li>You be receiving email after you been approved.</li>
+                            <li>Then you be able to login to system</li>
+                        </ol>
+                    </div>
+                    <a href="/login" class="btn btn-primary" style="max-width: 280px; margin: 0 auto; text-decoration: none;">
+                        <i class="fas fa-sign-in-alt"></i> Go to Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let confirmedFarmId = null;
+        let confirmedBusinessName = '';
+        let personalInfo = {};
+
+        // Init
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        })();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        function autoUppercase(input) {
+            input.value = input.value.toUpperCase();
+        }
+
+        function showAlert(message, type) {
+            const icons = { error: 'exclamation-circle', success: 'check-circle', info: 'info-circle' };
+            document.getElementById('alertBox').innerHTML =
+                '<div class="alert alert-' + type + '"><i class="fas fa-' + (icons[type] || 'info-circle') + '"></i><span>' + message + '</span></div>';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function clearAlert() {
+            document.getElementById('alertBox').innerHTML = '';
+        }
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        }
+
+        // =============================================
+        // STEP 1 — VALIDATE CODE
+        // =============================================
+        async function validateCode() {
+            const code = document.getElementById('businessCode').value.trim().toUpperCase();
+            if (!code) {
+                showAlert('Please enter your business code.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('validateBtn');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+            try {
+                const res = await fetch('/api/join/validate-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_code: code })
+                });
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerHTML = orig;
+
+                if (data.success) {
+                    confirmedFarmId = data.data.farm_id;
+                    confirmedBusinessName = data.data.business_name;
+
+                    document.getElementById('confirmedBusinessName').textContent = confirmedBusinessName;
+                    document.getElementById('businessConfirmed').style.display = 'flex';
+                    document.getElementById('businessCode').disabled = true;
+                    btn.style.display = 'none';
+
+                    document.getElementById('step2').classList.remove('disabled');
+
+                    clearAlert();
+                } else {
+                    showAlert(data.message || 'Invalid code.', 'error');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+                showAlert('Error: ' + e.message, 'error');
+            }
+        }
+
+        // =============================================
+        // STEP 2 — REVIEW INFO
+        // =============================================
+        function reviewInfo() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const dob = document.getElementById('dateOfBirth').value;
+            const address = document.getElementById('address').value.trim();
+            const emName = document.getElementById('emergencyContactName').value.trim();
+            const emPhone = document.getElementById('emergencyContactPhone').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validation
+            if (!firstName || !lastName) { showAlert('Please fill up the following instructions.', 'error'); return; }
+            if (!email || !email.includes('@')) { showAlert('Please enter a valid email.', 'error'); return; }
+            if (!phone || phone.length < 10) { showAlert('Please enter a valid phone number.', 'error'); return; }
+            if (!dob) { showAlert('Please enter your date of birth.', 'error'); return; }
+            if (!address) { showAlert('Please enter your home address.', 'error'); return; }
+            if (!emName || !emPhone) { showAlert('Please fill emergency contact details.', 'error'); return; }
+            if (!password || password.length < 6) { showAlert('Password must be at least 6 characters.', 'error'); return; }
+            if (password !== confirmPassword) { showAlert('Passwords do not match.', 'error'); return; }
+
+            // Store for later
+            personalInfo = {
+                business_code: document.getElementById('businessCode').value.trim().toUpperCase(),
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                phone: phone,
+                date_of_birth: dob,
+                address: address,
+                emergency_contact_name: emName,
+                emergency_contact_phone: emPhone,
+                password: password,
+                confirm_password: confirmPassword
+            };
+
+            // Build review HTML
+            const reviewHtml = `
+                <div class="review-item"><span class="label">Business:</span><span class="value">${escapeHtml(confirmedBusinessName)}</span></div>
+                <div class="review-item"><span class="label">Full Name:</span><span class="value">${escapeHtml(firstName + ' ' + lastName)}</span></div>
+                <div class="review-item"><span class="label">Email:</span><span class="value">${escapeHtml(email)}</span></div>
+                <div class="review-item"><span class="label">Phone:</span><span class="value">${escapeHtml(phone)}</span></div>
+                <div class="review-item"><span class="label">Date of Birth:</span><span class="value">${escapeHtml(dob)}</span></div>
+                <div class="review-item"><span class="label">Address:</span><span class="value">${escapeHtml(address)}</span></div>
+                <div class="review-item"><span class="label">Emergency Contact:</span><span class="value">${escapeHtml(emName)} (${escapeHtml(emPhone)})</span></div>
+                <div class="review-item"><span class="label">Password:</span><span class="value">${'•'.repeat(Math.min(password.length, 12))}</span></div>
+            `;
+
+            document.getElementById('reviewContent').innerHTML = reviewHtml;
+
+            document.getElementById('step2').classList.add('disabled');
+            document.getElementById('step3').classList.remove('disabled');
+
+            clearAlert();
+        }
+
+        // =============================================
+        // STEP 3 — EDIT
+        // =============================================
+        function editInfo() {
+            document.getElementById('step3').classList.add('disabled');
+            document.getElementById('step2').classList.remove('disabled');
+        }
+
+        // =============================================
+        // STEP 4 — SUBMIT
+        // =============================================
+        async function submitRegistration() {
+            if (!personalInfo.first_name) {
+                showAlert('Session lost. Please start over.', 'error');
+                location.reload();
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+            try {
+                const res = await fetch('/api/join/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(personalInfo)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Show success screen
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'none';
+                    document.getElementById('step3').style.display = 'none';
+                    document.getElementById('successBusinessName').textContent = confirmedBusinessName;
+                    document.getElementById('successScreen').style.display = 'block';
+
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                    showAlert(data.message || 'Failed to submit.', 'error');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+                showAlert('Error: ' + e.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

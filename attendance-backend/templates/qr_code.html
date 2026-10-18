@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}QR Code - Employee{% endblock %}
+
+{% block content %}
+<div class="page-header">
+<div class="blocked-card">
+    <img src="{{ url_for('static', filename='images/DOG.png') }}"
+         alt="Dutipay" style="max-width: 160px; margin-bottom: 20px;">
+    <span class="blocked-icon">💻</span>
+    <h1>📱 Employee QR Code</h1>
+    <p class="subtitle">Print this QR code for attendance scanning</p>
+</div>
+
+<div class="card" style="max-width: 500px; margin: 0 auto;">
+    <div class="card-body" style="text-align: center;">
+        <div id="qrContainer">
+            <div class="spinner spinner-large"></div>
+            <p>Generating QR code...</p>
+        </div>
+        
+        <div id="employeeInfo" style="display: none;">
+            <h2 id="empName" style="margin: 16px 0 4px; color: var(--text-primary);"></h2>
+            <p id="empCode" style="color: var(--text-muted); margin-bottom: 20px;"></p>
+            <img id="qrImage" style="width: 250px; height: 250px; border: 2px solid var(--border); border-radius: 12px; padding: 10px; background: white;">
+        </div>
+        
+        <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+            <button class="btn btn-primary" onclick="printQR()">
+                <i class="fas fa-print"></i> Print
+            </button>
+            <a href="/employees" class="btn btn-info">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+const empId = {{ emp_id }};
+
+async function loadQR() {
+    try {
+        const res = await fetch(`/api/employees/${empId}/qr`);
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('qrContainer').style.display = 'none';
+            document.getElementById('employeeInfo').style.display = 'block';
+            document.getElementById('empName').textContent = data.employee_name;
+            document.getElementById('empCode').textContent = data.employee_code;
+            document.getElementById('qrImage').src = data.qr_code;
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function printQR() {
+    const printContent = document.getElementById('employeeInfo').innerHTML;
+    const originalContent = document.body.innerHTML;
+    document.body.innerHTML = `
+        <div style="text-align: center; padding: 50px;">
+            ${printContent}
+        </div>
+    `;
+    window.print();
+    document.body.innerHTML = originalContent;
+    window.location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', loadQR);
+</script>
+{% endblock %}

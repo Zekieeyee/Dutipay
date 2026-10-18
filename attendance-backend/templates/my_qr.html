@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}My QR Code{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📱 My Attendance QR Code</h1>
+    <p class="subtitle">Show this QR code to the scanner to record your attendance</p>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body" style="text-align: center; padding: 40px 32px;">
+
+        <!-- Loading State -->
+        <div id="loadingState">
+            <div class="spinner spinner-large" style="margin: 0 auto 16px;"></div>
+            <p style="color: var(--text-muted);">Loading your QR code...</p>
+        </div>
+
+        <!-- QR Content -->
+        <div id="qrContent" style="display: none;">
+
+            <!-- Employee Info -->
+            <div style="margin-bottom: 24px;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px; font-weight: 700; box-shadow: 0 8px 24px rgba(74,124,89,0.3);" id="avatarCircle">
+                    J
+                </div>
+                <h2 id="empName" style="font-size: 22px; font-weight: 700; color: var(--text-primary); margin: 0 0 6px;"></h2>
+                <p id="empCode" style="font-size: 14px; color: var(--text-muted); margin: 0 0 4px;"></p>
+                <p id="empPosition" style="font-size: 13px; color: var(--text-secondary); margin: 0;"></p>
+            </div>
+
+            <!-- QR Code -->
+            <div style="background: white; padding: 24px; border-radius: 16px; display: inline-block; margin-bottom: 24px; border: 2px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                <img id="qrImage" src="" alt="QR Code" style="width: 280px; height: 280px; display: block;">
+            </div>
+
+            <!-- Instructions -->
+            <div style="background: var(--bg-secondary); padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: left; border: 1px solid var(--border);">
+                <p style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px;">
+                    <i class="fas fa-info-circle" style="color: var(--primary);"></i> How to use:
+                </p>
+                <ol style="color: var(--text-secondary); font-size: 13px; padding-left: 20px; line-height: 1.8; margin: 0;">
+                    <li>Show this QR code to the scanner</li>
+                    <li>Scan for <strong>Time-In</strong> in the morning</li>
+                    <li>Scan again for <strong>Time-Out</strong> at end of day</li>
+                    <li>Keep this code private — don't share</li>
+                </ol>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="downloadQRImage()">
+                    <i class="fas fa-image"></i> Download PNG
+                </button>
+                <button class="btn btn-success" onclick="downloadQRAsPDF()">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </button>
+                <button class="btn btn-info" onclick="printQR()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" style="display: none;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: var(--accent-red); margin-bottom: 16px;"></i>
+            <h3 style="color: var(--text-primary); margin-bottom: 8px;">Unable to load QR code</h3>
+            <p id="errorMsg" style="color: var(--text-secondary);"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentQR = null;
+
+async function loadMyQR() {
+    try {
+        const res = await fetch('/api/me/qr');
+        const data = await res.json();
+
+        if (!data.success) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMsg').textContent = data.message || 'Unknown error';
+            return;
+        }
+
+        currentQR = data;
+
+        // Populate info
+        document.getElementById('empName').textContent = data.employee_name;
+        document.getElementById('empCode').textContent = 'Code: ' + data.employee_code;
+        document.getElementById('empPosition').textContent = data.position + ' · ' + data.business_name;
+        document.getElementById('qrImage').src = data.qr_code;
+
+        // Avatar initial
+        const initial = (data.employee_name || 'U').charAt(0).toUpperCase();
+        document.getElementById('avatarCircle').textContent = initial;
+
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('qrContent').style.display = 'block';
+    } catch (e) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorMsg').textContent = e.message;
+    }
+}
+
+function downloadQRImage() {
+    if (!currentQR) return;
+
+    const link = document.createElement('a');
+    link.href = currentQR.qr_code;
+    link.download = `QR_${currentQR.employee_code}_${new Date().toISOString().split('T')[0]}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function downloadQRAsPDF() {
+    if (!currentQR) return;
+
+    // Open print dialog na naka-set sa PDF style
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+        alert('Please allow popups to download as PDF.');
+        return;
+    }
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>QR Code - ${currentQR.employee_name}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Inter', Arial, sans-serif;
+                    padding: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                }
+                .card {
+                    width: 500px;
+                    padding: 40px;
+                    border: 3px solid #4a7c59;
+                    border-radius: 24px;
+                    background: white;
+                    text-align: center;
+                }
+                .logo {
+                    font-size: 32px;
+                    font-weight: 800;
+                    color: #4a7c59;
+                    margin-bottom: 6px;
+                }
+                .sub {
+                    font-size: 13px;
+                    color: #8a9a8a;
+                    margin-bottom: 30px;
+                    letter-spacing: 2px;
+                    text-transform: uppercase;
+                }
+                .employee-name {
+                    font-size: 26px;
+                    font-weight: 700;
+                    color: #2d3e2d;
+                    margin-bottom: 6px;
+                }
+                .employee-code {
+                    font-size: 16px;
+                    color: #5a6b5a;
+                    margin-bottom: 4px;
+                }
+                .employee-position {
+                    font-size: 14px;
+                    color: #8a9a8a;
+                    margin-bottom: 30px;
+                }
+                .qr-container {
+                    display: inline-block;
+                    padding: 20px;
+                    background: white;
+                    border: 2px solid #e0e7d5;
+                    border-radius: 16px;
+                    margin-bottom: 24px;
+                }
+                .qr-container img {
+                    width: 280px;
+                    height: 280px;
+                    display: block;
+                }
+                .instructions {
+                    background: #f0f4e8;
+                    padding: 16px;
+                    border-radius: 10px;
+                    text-align: left;
+                    font-size: 13px;
+                    color: #5a6b5a;
+                    line-height: 1.7;
+                    margin-bottom: 20px;
+                }
+                .instructions strong { color: #2d3e2d; }
+                .footer {
+                    font-size: 11px;
+                    color: #8a9a8a;
+                    padding-top: 20px;
+                    border-top: 1px solid #e0e7d5;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="logo">🌾 ${currentQR.business_name}</div>
+                <div class="sub">Attendance QR Code</div>
+
+                <div class="employee-name">${currentQR.employee_name}</div>
+                <div class="employee-code">${currentQR.employee_code}</div>
+                <div class="employee-position">${currentQR.position}</div>
+
+                <div class="qr-container">
+                    <img src="${currentQR.qr_code}" alt="QR Code">
+                </div>
+
+                <div class="instructions">
+                    <strong>Instructions:</strong><br>
+                    1. Show this QR code to the scanner<br>
+                    2. Scan for Time-In in the morning<br>
+                    3. Scan again for Time-Out at end of day<br>
+                    4. Keep this code private
+                </div>
+
+                <div class="footer">
+                    FarmSync Attendance & Payroll System<br>
+                    Generated: ${new Date().toLocaleDateString()}
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 300);
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function printQR() {
+    if (!currentQR) return;
+    downloadQRAsPDF(); // Same behavior — opens print dialog
+}
+
+document.addEventListener('DOMContentLoaded', loadMyQR);
+</script>
+{% endblock %}
