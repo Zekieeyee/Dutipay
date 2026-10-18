@@ -40,3 +40,5 @@ services:
         value: "3"
       - key: RESET_RATE_LIMIT_LONG
         value: "5"
+        runtime: python
+        rootDir: test
