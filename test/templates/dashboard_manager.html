@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Manager Dashboard</h1>
+    <p class="subtitle">Welcome back, {{ full_name }}!</p>
+</div>
+
+<!-- TEAM STATS (REAL DATA) -->
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <h4>Team Members</h4>
+            <p class="stat-number" id="teamCount">—</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Active employees</small>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+        <div class="stat-info">
+            <h4>Present Today</h4>
+            <p class="stat-number" id="teamPresent">—</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Unique check-ins</small>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h4>Late Today</h4>
+            <p class="stat-number" id="teamLate">—</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Late arrivals</small>
+        </div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-info">
+            <h4>Attendance Rate</h4>
+            <p class="stat-number" id="teamRate">—</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Today's percentage</small>
+        </div>
+    </div>
+</div>
+
+<div class="cutoff-indicator" id="cutoffIndicator" style="display: none;">
+    <i class="fas fa-calendar-alt"></i>
+    <span>Current Cutoff: <strong id="cutoffLabel">—</strong></span>
+</div>
+
+<style>
+.cutoff-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, rgba(74,124,89,0.1), rgba(107,142,35,0.05));
+    border: 1px solid rgba(74,124,89,0.2);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.cutoff-indicator i { color: var(--primary); font-size: 16px; }
+.cutoff-indicator strong { color: var(--text-primary); }
+</style>
+
+<!-- QUICK ACTIONS -->
+<div class="card">
+    <div class="card-header">
+        <h3>⚡ Quick Actions</h3>
+    </div>
+    <div class="card-body">
+        <div class="quick-actions">
+            <a href="/attendance" class="quick-action">
+                <i class="fas fa-clipboard-check"></i>
+                <span>Team Attendance</span>
+            </a>
+            <a href="/payroll/manager" class="quick-action">
+                <i class="fas fa-money-bill"></i>
+                <span>Team Payroll</span>
+            </a>
+            <a href="/reports" class="quick-action">
+                <i class="fas fa-file-export"></i>
+                <span>Team Reports</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- TEAM ATTENDANCE TODAY (REAL DATA) -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Team Attendance Today</h3>
+        <a href="/attendance" class="btn btn-sm btn-info">
+            <i class="fas fa-eye"></i> View All
+        </a>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Code</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="teamAttendanceBody">
+                <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">
+                        Loading...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// =============================================
+// ✅ SECURITY: escapeHtml
+// =============================================
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+
+// =============================================
+// ✅ FIX: Get "today" in Asia/Manila, not UTC
+// =============================================
+function getTodayManila() {
+    const now = new Date();
+    const manila = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const year = manila.getFullYear();
+    const month = String(manila.getMonth() + 1).padStart(2, '0');
+    const day = String(manila.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// =============================================
+// ✅ FIX: Format time safely
+// =============================================
+function formatTime(value) {
+    if (!value) return '—';
+    try {
+        const d = new Date(value);
+        if (isNaN(d)) return '—';
+        return d.toLocaleTimeString('en-PH', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Manila'
+        });
+    } catch (e) {
+        return '—';
+    }
+}
+
+// =============================================
+// LOAD TEAM STATS + ATTENDANCE
+// =============================================
+async function loadManagerDashboard() {
+    const teamCountEl = document.getElementById('teamCount');
+    const teamPresentEl = document.getElementById('teamPresent');
+    const teamLateEl = document.getElementById('teamLate');
+    const teamRateEl = document.getElementById('teamRate');
+    const tbody = document.getElementById('teamAttendanceBody');
+
+    try {
+        // ✅ Fetch team members (exclude owner)
+        const empRes = await fetch('/api/employees');
+        const empData = await empRes.json();
+
+        if (empData.success && empData.data) {
+            teamCountEl.textContent = empData.data.length;
+        } else {
+            teamCountEl.textContent = '0';
+        }
+
+        // ✅ Fetch today's attendance
+        const today = getTodayManila();
+        const attRes = await fetch(`/api/attendance/all?date_from=${today}&date_to=${today}`);
+        const attData = await attRes.json();
+
+        if (!attData.success || !attData.data) {
+            teamPresentEl.textContent = '0';
+            teamLateEl.textContent = '0';
+            teamRateEl.textContent = '0%';
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">
+                        <i class="fas fa-calendar-times" style="font-size:32px;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                        No attendance records today
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const records = attData.data;
+        const presentCount = records.filter(r => r.time_in).length;
+        const lateCount = records.filter(r => (r.late_minutes || 0) > 0).length;
+        const teamCount = parseInt(teamCountEl.textContent) || 0;
+        const rate = teamCount > 0 ? Math.round((presentCount / teamCount) * 100) : 0;
+
+        teamPresentEl.textContent = presentCount;
+        teamLateEl.textContent = lateCount;
+        teamRateEl.textContent = rate + '%';
+
+        // ✅ Render attendance rows
+        if (!records.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">
+                        <i class="fas fa-calendar-times" style="font-size:32px;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                        No attendance records today
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = records.slice(0, 10).map(r => {
+            const statusClass = r.status === 'Late' ? 'warning' : 'success';
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(r.employee_name || 'Unknown')}</strong></td>
+                    <td>${escapeHtml(r.employee_code || '—')}</td>
+                    <td>${escapeHtml(formatTime(r.time_in))}</td>
+                    <td>${escapeHtml(formatTime(r.time_out))}</td>
+                    <td><span class="badge badge-${statusClass}">${escapeHtml(r.status || 'Present')}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (e) {
+        console.error('Manager dashboard error:', e);
+        teamCountEl.textContent = '—';
+        teamPresentEl.textContent = '—';
+        teamLateEl.textContent = '—';
+        teamRateEl.textContent = '—';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center;color:var(--accent-red);padding:20px;">
+                    Error loading team data
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// =============================================
+// LOAD CUTOFF INDICATOR
+// =============================================
+async function loadCutoff() {
+    try {
+        const res = await fetch('/api/cutoff/current');
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('cutoffLabel').textContent = data.data.label;
+            document.getElementById('cutoffIndicator').style.display = 'inline-flex';
+        }
+    } catch (e) {
+        // Silent fail
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadManagerDashboard();
+    loadCutoff();
+});
+</script>
+{% endblock %}

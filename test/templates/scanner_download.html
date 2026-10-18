@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Download Scanner{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📥 Download Scanner</h1>
+    <p class="subtitle">Install the scanner on your device for attendance</p>
+</div>
+
+<!-- TIP BANNER -->
+{% set mode = settings.scanner_mode or 'camera' %}
+{% set is_locked = mode in ['camera', 'file'] %}
+
+<div class="alert alert-info" style="background: rgba(74,124,89,0.1); border-left: 4px solid var(--primary); padding: 16px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 12px;">
+    <i class="fas fa-lightbulb" style="color: var(--primary); font-size: 18px; margin-top: 2px;"></i>
+    <div style="flex: 1;">
+        <strong>💡 Important Tip:</strong>
+        <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-secondary);">
+            The scanner tool is downloaded with your current settings <strong>baked in</strong>.
+            If you change any scanner configuration (mode, sound, cooldown),
+            you need to <strong>re-download the scanner tool</strong> to apply the changes.
+        </p>
+        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(74,124,89,0.08); border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">
+                <strong>Current active mode:</strong>
+            </span>
+            {% if mode == 'camera' %}
+                <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-camera"></i> Camera Scan
+                    <i class="fas fa-lock" style="font-size: 10px;"></i> Locked
+                </span>
+            {% elif mode == 'file' %}
+                <span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-image"></i> File Upload
+                    <i class="fas fa-lock" style="font-size: 10px;"></i> Locked
+                </span>
+            {% elif mode == 'flexible' %}
+                <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-sliders-h"></i> Flexible
+                    <i class="fas fa-unlock" style="font-size: 10px;"></i> User can switch
+                </span>
+            {% endif %}
+        </div>
+        <p style="margin: 8px 0 0; font-size: 12px; color: var(--text-muted);">
+            <i class="fas fa-info-circle"></i>
+            To change the scanner mode, go to <a href="/settings" style="color: var(--primary); font-weight: 600;">Settings → QR & Scanner</a>
+        </p>
+    </div>
+</div>
+
+<!-- INFO CARD -->
+<div class="card">
+    <div class="card-header">
+        <h3>🔒 Admin-Only Tool</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger" style="margin-bottom: 20px;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Important:</strong> This scanner is a <strong>standalone tool</strong>
+            that must be installed on a dedicated device by the administrator.
+            It cannot be accessed through a web browser.
+        </div>
+        <p style="color: var(--text-secondary); line-height: 1.8;">
+            The scanner tool is used to record employee attendance via QR code scanning.
+            It should be installed on the device (laptop or tablet) that will be placed
+            at the attendance station.
+        </p>
+    </div>
+</div>
+
+<!-- DOWNLOAD SECTION -->
+<div class="card">
+    <div class="card-header">
+        <h3>📥 Download Options</h3>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+            Download the scanner tool and install it on the dedicated attendance device.
+        </p>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+            <a href="/scanner?mode={{ mode }}{% if is_locked %}&locked=1{% endif %}"
+               class="btn btn-primary" target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+                Open Scanner in Browser
+                {% if mode == 'camera' %}
+                    (Camera{% if is_locked %} 🔒{% endif %})
+                {% elif mode == 'file' %}
+                    (File Upload{% if is_locked %} 🔒{% endif %})
+                {% else %}
+                    (Flexible)
+                {% endif %}
+            </a>
+
+            <a href="/scanner/download/file" class="btn btn-success">
+                <i class="fas fa-download"></i>
+                Download Scanner Tool
+            </a>
+        </div>
+
+        <p style="color: var(--text-muted); font-size: 13px; margin-top: 16px;">
+            File: <code>dutipay-scanner-{% if mode == 'flexible' %}camera{% else %}{{ mode }}{% endif %}.html</code>
+        </p>
+    </div>
+</div>
+
+<!-- MODE EXPLANATION -->
+<div class="card">
+    <div class="card-header">
+        <h3>📖 Scanner Modes Explained</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; gap: 16px;">
+
+            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; border-left: 4px solid var(--primary);">
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-camera" style="color: var(--primary);"></i> Camera Scan (Locked)
+                </h4>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                    Locked to camera scanning only. Switching to file upload is not possible.
+                    This is the recommended option for an attendance station with a webcam.
+                </p>
+            </div>
+
+            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; border-left: 4px solid var(--accent-yellow);">
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-image" style="color: #b8860b;"></i> File Upload (Locked)
+                </h4>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                    Locked to file upload only. This is for kiosk mode or when there is no webcam.
+                </p>
+            </div>
+
+            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; border-left: 4px solid var(--accent-green);">
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-sliders-h" style="color: var(--accent-green);"></i> Flexible (User can switch)
+                </h4>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                    The user can switch between camera and file upload at any time.
+                    This is the default when there is no specific requirement.
+                </p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- TOOLS & REQUIREMENTS -->
+<div class="card">
+    <div class="card-header">
+        <h3>🔧 Tools & Requirements</h3>
+    </div>
+    <div class="card-body">
+        <div class="tools-grid">
+            <div class="tool-item">
+                <div class="tool-icon"><i class="fas fa-laptop"></i></div>
+                <div class="tool-info">
+                    <h4>Computer / Laptop</h4>
+                    <p>Many modern laptop or tablet with a working webcam</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon"><i class="fas fa-camera"></i></div>
+                <div class="tool-info">
+                    <h4>Webcam / Camera</h4>
+                    <p>720p HD webcam or higher for QR scanning</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon"><i class="fas fa-wifi"></i></div>
+                <div class="tool-info">
+                    <h4>Internet Connection</h4>
+                    <p>Required for syncing attendance records to server</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon"><i class="fab fa-chrome"></i></div>
+                <div class="tool-info">
+                    <h4>Modern Web Browser</h4>
+                    <p>Chrome, Edge, or Firefox (latest version)</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon"><i class="fas fa-qrcode"></i></div>
+                <div class="tool-info">
+                    <h4>QR Code Display</h4>
+                    <p>Printed QR codes for each employee</p>
+                </div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-icon"><i class="fas fa-plug"></i></div>
+                <div class="tool-info">
+                    <h4>Power Supply</h4>
+                    <p>Stable power source for the attendance station</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- INSTALLATION INSTRUCTIONS -->
+<div class="card">
+    <div class="card-header">
+        <h3>📖 Installation Instructions</h3>
+    </div>
+    <div class="card-body">
+        <ol style="color: var(--text-secondary); padding-left: 20px; line-height: 2;">
+            <li>Download the scanner tool file.</li>
+            <li>Transfer the file to the dedicated attendance device.</li>
+            <li>Open the file in a web browser (Chrome recommended).</li>
+            <li>Allow camera access when prompted.</li>
+            <li>Bookmark the page for easy access.</li>
+            <li>Place the device at the attendance station.</li>
+        </ol>
+        <div class="alert alert-success" style="margin-top: 20px;">
+            <i class="fas fa-check-circle"></i>
+            <strong>Note:</strong> The scanner tool will continue to work offline
+            once downloaded. However, an internet connection is required to sync
+            attendance records to the server.
+        </div>
+    </div>
+</div>
+
+<style>
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.tool-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+}
+
+.tool-item:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+    box-shadow: var(--shadow);
+}
+
+.tool-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.tool-info h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.tool-info p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+</style>
+{% endblock %}

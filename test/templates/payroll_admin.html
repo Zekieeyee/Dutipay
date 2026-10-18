@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Management - Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💰 Payroll Management</h1>
+    <p class="subtitle">Generate and manage employee payroll</p>
+</div>
+
+<!-- ============================================= -->
+<!-- PAY PERIOD SELECTOR                           -->
+<!-- ============================================= -->
+<div class="card">
+    <div class="card-header">
+        <h3>📅 Select Pay Period</h3>
+        <span class="badge badge-info" id="currentCutoffLabel">—</span>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info" style="margin-bottom: 16px; font-size: 13px;">
+            <i class="fas fa-info-circle"></i>
+            <span>FarmSync uses <strong>standard 15-day cutoffs</strong>: 1st–15th and 16th–end of month.</span>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Select Cutoff Period</label>
+                <select id="cutoffDropdown">
+                    <option value="">— Loading cutoffs... —</option>
+                </select>
+            </div>
+            <div class="form-group" style="display: flex; gap: 8px; align-items: flex-end;">
+                <button class="btn btn-secondary" onclick="loadPayroll(false)">
+                    <i class="fas fa-search"></i> View
+                </button>
+                <button class="btn btn-primary" id="generateBtn" onclick="generatePayroll()">
+                    <i class="fas fa-calculator"></i> Generate Payroll
+                </button>
+            </div>
+        </div>
+        <input type="hidden" id="periodStart">
+        <input type="hidden" id="periodEnd">
+<label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+    <input type="checkbox" id="regenerateChk">
+    Recompute unpaid payroll for this period.
+    <strong style="color: var(--accent-yellow);">Received records block regeneration.</strong>
+</label>
+    </div>
+</div>
+
+<!-- PAYROLL SUMMARY CARDS -->
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <h4>Total Records</h4>
+            <p class="stat-number" id="sumEmployees">0</p>
+            <small>Payroll entries for this period</small>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h4>Received</h4>
+            <p class="stat-number" id="countReceived" style="color: var(--accent-green);">0</p>
+            <small>Already received by employees</small>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h4>Pending</h4>
+            <p class="stat-number" id="countPending" style="color: #b8860b;">0</p>
+            <small>Waiting to be received</small>
+        </div>
+    </div>
+</div>
+
+<!-- PAYROLL TABLE -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Payroll List</h3>
+        <div class="card-actions" style="display: flex; align-items: center; gap: 8px;">
+            <span class="badge badge-info" id="statusCount">0 paid / 0 pending</span>
+            <button class="btn btn-sm btn-info" onclick="exportPayroll()">📥 Export CSV</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Employee</th>
+                    <th>Gross Pay</th>
+                    <th>Deductions</th>
+                    <th>Net Pay</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="payrollTableBody">
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- ============================================= -->
+<!-- UNLOCK PAYROLL MODAL (admin only)             -->
+<!-- ============================================= -->
+<div id="unlockPayrollModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h3>🔓 Unlock Payroll Record</h3>
+            <button class="modal-close" onclick="closeUnlockModal()">&times;</button>
+        </div>
+        <form onsubmit="submitUnlock(event)">
+            <input type="hidden" id="unlockPayrollId">
+            <div style="padding: 24px;">
+
+                <!-- Warning banner -->
+                <div class="alert alert-warning" style="margin-bottom: 20px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start;">
+                    <i class="fas fa-exclamation-triangle" style="color: #b8860b; font-size: 18px; margin-top: 2px; flex-shrink: 0;"></i>
+                    <div>
+                        <strong>Admin Override Action</strong>
+                        <p style="margin: 6px 0 0; font-size: 12.5px; line-height: 1.6;">
+                            This will clear the <strong>"Received"</strong> status from the payroll record
+                            and allow regeneration or editing. All actions are audit-logged.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Employee info (auto-filled) -->
+                <div style="padding: 14px 16px; background: var(--bg-secondary); border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-yellow), #d4a017); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 2px;">
+                                Unlocking payroll for
+                            </div>
+                            <div id="unlockEmployeeName" style="font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                                —
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- When to use -->
+                <div style="padding: 14px 16px; background: rgba(74, 124, 89, 0.06); border-left: 3px solid var(--primary); border-radius: 8px; margin-bottom: 20px;">
+                    <p style="font-size: 12px; font-weight: 700; color: var(--primary); margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-info-circle"></i> When to use
+                    </p>
+                    <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.8;">
+                        <li>Payment was reversed or returned</li>
+                        <li>Payroll amount was incorrect</li>
+                        <li>Marked as received by mistake</li>
+                    </ul>
+                </div>
+
+                <!-- Reason field -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                        Reason for Unlocking <span style="color: var(--accent-red);">*</span>
+                    </label>
+                    <textarea id="unlockReason" rows="3" required minlength="5"
+                              placeholder="e.g., Payment was returned by the employee due to wrong amount..."
+                              style="padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%; font-size: 13.5px; resize: vertical; line-height: 1.5;"></textarea>
+                    <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 6px;">
+                        <i class="fas fa-lock"></i> Minimum 5 characters. This will be recorded in the audit log.
+                    </small>
+                </div>
+
+            </div>
+            <div class="modal-actions" style="padding: 0 24px 24px;">
+                <button type="button" class="btn btn-secondary" onclick="closeUnlockModal()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-warning" id="unlockSubmitBtn">
+                    <i class="fas fa-lock-open"></i> Unlock Payroll
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% include "payroll_common.html" %}
+
+<script>
+// ✅ NEW: Unlock handler (uses data-* for safety)
+// =============================================
+// ✅ UNLOCK PAYROLL — Opens modal instead of prompt
+// =============================================
+let currentUnlockId = null;
+
+function unlockPayrollFromButton(btn) {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+    
+    currentUnlockId = id;
+
+    // Set employee name sa modal
+    document.getElementById('unlockEmployeeName').textContent = name || 'Unknown Employee';
+    document.getElementById('unlockPayrollId').value = id;
+    document.getElementById('unlockReason').value = '';
+
+    // Reset button state
+    const submitBtn = document.getElementById('unlockSubmitBtn');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-lock-open"></i> Unlock Payroll';
+
+    // Show modal
+    document.getElementById('unlockPayrollModal').style.display = 'flex';
+
+    // Focus sa reason field
+    setTimeout(() => document.getElementById('unlockReason').focus(), 100);
+}
+
+function closeUnlockModal() {
+    document.getElementById('unlockPayrollModal').style.display = 'none';
+    currentUnlockId = null;
+}
+
+async function submitUnlock(e) {
+    e.preventDefault();
+
+    if (!currentUnlockId) {
+        toast('No payroll record selected.', 'error');
+        return;
+    }
+
+    const reason = document.getElementById('unlockReason').value.trim();
+    if (!reason || reason.length < 5) {
+        toast('Reason must be at least 5 characters.', 'error');
+        document.getElementById('unlockReason').focus();
+        return;
+    }
+
+    const btn = document.getElementById('unlockSubmitBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Unlocking...';
+
+    try {
+        const res = await fetch(`/api/payroll/${currentUnlockId}/unlock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason })
+        });
+        const data = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = orig;
+
+        if (data.success) {
+            toast('Payroll unlocked successfully', 'success');
+            closeUnlockModal();
+            await loadPayroll(false);  // Reload current period
+        } else {
+            toast(data.message || 'Failed to unlock', 'error');
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        toast('Error: ' + err.message, 'error');
+    }
+}
+
+// ✅ Close modal on outside click
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('unlockPayrollModal');
+    if (e.target === modal) {
+        closeUnlockModal();
+    }
+});
+
+// ✅ Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeUnlockModal();
+    }
+});
+async function unlockPayroll(id, reason) {
+    try {
+        const res = await fetch(`/api/payroll/${id}/unlock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        toast('Payroll unlocked', 'success');
+        await loadPayroll(false);  // Reload current period
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+// =============================================
+// CUTOFF DROPDOWN
+// =============================================
+let cutoffOptions = [];
+let cutoffsLoaded = false;
+
+async function loadCutoffs() {
+    // ✅ FIX: Prevent double-load
+    if (cutoffsLoaded) return;
+    cutoffsLoaded = true;
+
+    try {
+        const res = await fetch('/api/cutoffs?months_back=3');
+        const data = await res.json();
+        if (!data.success) return;
+
+        cutoffOptions = data.data || [];
+        const current = data.current;
+
+        document.getElementById('currentCutoffLabel').textContent = 'Current: ' + current.label;
+
+        const dropdown = document.getElementById('cutoffDropdown');
+        dropdown.innerHTML = '';
+        cutoffOptions.forEach((c, idx) => {
+            const opt = document.createElement('option');
+            opt.value = c.start + '|' + c.end;
+            opt.textContent = c.label + (idx === 0 ? ' (Current)' : '');
+            opt.dataset.start = c.start;
+            opt.dataset.end = c.end;
+            dropdown.appendChild(opt);
+        });
+
+        // ✅ FIX: Sync dropdown + hidden inputs
+        dropdown.value = current.start + '|' + current.end;
+        syncPeriodFromDropdown();
+    } catch (e) {
+        console.error('Load cutoffs error:', e);
+    }
+}
+
+// ✅ FIX: Renamed + single source of truth
+function syncPeriodFromDropdown() {
+    const dropdown = document.getElementById('cutoffDropdown');
+    const selected = dropdown.options[dropdown.selectedIndex];
+    if (!selected) return;
+
+    document.getElementById('periodStart').value = selected.dataset.start || '';
+    document.getElementById('periodEnd').value = selected.dataset.end || '';
+}
+
+// ✅ FIX: Sync dropdown FROM period values (for useLatest case)
+function syncDropdownFromPeriod(start, end) {
+    const dropdown = document.getElementById('cutoffDropdown');
+    const targetValue = start + '|' + end;
+
+    // Find matching option
+    for (let i = 0; i < dropdown.options.length; i++) {
+        if (dropdown.options[i].value === targetValue) {
+            dropdown.selectedIndex = i;
+            return;
+        }
+    }
+    // If no match, leave as-is
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const dropdown = document.getElementById('cutoffDropdown');
+    if (dropdown) {
+        dropdown.addEventListener('change', syncPeriodFromDropdown);
+    }
+});
+
+function getPeriod() {
+    return {
+        start: document.getElementById('periodStart').value,
+        end: document.getElementById('periodEnd').value
+    };
+}
+
+function renderSummary(s) {
+    document.getElementById('sumEmployees').textContent = s.count;
+    document.getElementById('countReceived').textContent = s.received_count || 0;
+    document.getElementById('countPending').textContent = s.pending_count || 0;
+
+    const badge = document.getElementById('statusCount');
+    if (badge) {
+        badge.textContent = `${s.received_count || 0} received / ${s.pending_count || 0} pending`;
+    }
+}
+
+function renderTable(rows) {
+    const tbody = document.getElementById('payrollTableBody');
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">
+            No payroll for this period yet. Click <strong>Generate Payroll</strong>.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td>${esc(r.employee_name)}<br><small style="color:var(--text-muted);">${esc(r.employee_code)}</small></td>
+            <td>${money(r.gross_pay)}</td>
+            <td>${money(r.total_deductions)}</td>
+            <td><strong>${money(r.net_pay)}</strong></td>
+                        <td>${r.received_at 
+                ? '<span class="badge badge-success">🔒 Received</span>' 
+                : '<span class="badge badge-warning">Pending</span>'
+            }</td>
+            <td class="action-buttons">
+                <button class="btn btn-sm btn-info" onclick="viewPayroll(${r.id})" title="View">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <button class="btn btn-sm btn-success" onclick="printPayslip(${r.id})" title="Print">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                ${r.received_at 
+                    ? `<button class="btn btn-sm btn-warning btn-toggle-status" data-id="${r.id}" data-name="${esc(r.employee_name)}" onclick="unlockPayrollFromButton(this)" title="Unlock this payroll record — allows regeneration and editing. Audit-logged."
+                        <i class="fas fa-lock-open"></i> Unlock
+                    </button>`
+                    : `<button class="btn btn-sm btn-primary btn-toggle-status" data-id="${r.id}" data-name="${esc(r.employee_name)}" onclick="markAsReceivedFromButton(this)" title="Mark as Received">
+                        <i class="fas fa-hand-holding-usd"></i> Mark Received
+                    </button>`
+                }
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ✅ FIX: Handler reads from data-* attributes (safe for any name)
+function markAsReceivedFromButton(btn) {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+    markAsReceived(id, name);
+}
+
+async function loadPayroll(useLatest) {
+    const tbody = document.getElementById('payrollTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Loading...</td></tr>';
+
+    try {
+        const params = new URLSearchParams();
+        if (!useLatest) {
+            const p = getPeriod();
+            if (!p.start || !p.end) { 
+                toast('Please select a Start and End date first', 'error'); 
+                return; 
+            }
+            params.append('period_start', p.start);
+            params.append('period_end', p.end);
+        }
+
+        const res = await fetch(`/api/payroll?${params.toString()}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+
+        // ✅ FIX: When useLatest, sync BOTH dropdown and hidden inputs
+        if (useLatest && data.period) {
+            syncDropdownFromPeriod(data.period.start, data.period.end);
+            syncPeriodFromDropdown();
+        }
+
+        renderSummary(data.summary);
+        renderTable(data.data);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--accent-red);">Error: ${esc(e.message)}</td></tr>`;
+    }
+}
+
+async function generatePayroll() {
+    const p = getPeriod();
+    if (!p.start || !p.end) { 
+        toast('Please select a Start and End date first', 'error'); 
+        return; 
+    }
+    if (p.end < p.start) { 
+        toast('The End date must not be earlier than the Start date', 'error'); 
+        return; 
+    }
+
+    const regenerate = document.getElementById('regenerateChk').checked;
+    if (regenerate && !confirm('This will recompute ALL unpaid payroll for this period. Received records will block regeneration. Continue?')) {
+        return;
+    }
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/payroll/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({period_start: p.start, period_end: p.end, regenerate: regenerate})
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            // ✅ Special handling para sa 409 Conflict (locked payroll)
+            if (res.status === 409) {
+                toast(
+                    '🔒 Cannot regenerate — some records are already marked as received. ' +
+                    'Unlock them first.',
+                    'error'
+                );
+            } else {
+                toast(data.message || 'Failed to generate payroll', 'error');
+            }
+        } else if (data.count === 0) {
+            toast('Nothing new was generated. Tick "Recompute unpaid" to run again.', 'info');
+        } else {
+            toast(`${data.count} payroll record(s) generated`, 'success');
+        }
+        document.getElementById('regenerateChk').checked = false;
+        await loadPayroll(false);
+    } catch (e) {
+        toast('Error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+async function markAsReceived(id, name) {
+    if (!confirm(`Mark ${name} as RECEIVED?\n\nOnly do this after the employee has received their pay. This cannot be undone.`)) return;
+    try {
+        const res = await fetch(`/api/payroll/${id}/mark-received`, {method: 'POST'});
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        toast('Marked as received', 'success');
+        await loadPayroll(false);
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+
+function exportPayroll() {
+    const p = getPeriod();
+    if (!p.start || !p.end) { toast('Please select a Start and End date first', 'error'); return; }
+    window.location.href = `/api/payroll/export?period_start=${p.start}&period_end=${p.end}`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCutoffs();
+    await loadPayroll(true);
+});
+</script>
+<style>
+/* ✅ Modal consistency */
+#unlockPayrollModal .modal-content {
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalScaleIn 0.25s ease;
+}
+
+@keyframes modalScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+#unlockPayrollModal textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.12);
+}
+
+#unlockPayrollModal textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+/* ✅ PAYROLL TABLE — COMPACT LAYOUT */
+#payrollTableBody tr td {
+    padding: 10px 8px !important;
+    font-size: 12.5px;
+    white-space: nowrap;
+}
+
+#payrollTableBody td:nth-child(1) { width: 30px; text-align: center; }
+#payrollTableBody td:nth-child(2) { min-width: 130px; }
+#payrollTableBody td:nth-child(3),
+#payrollTableBody td:nth-child(4),
+#payrollTableBody td:nth-child(5) { width: 90px; text-align: right; }
+#payrollTableBody td:nth-child(6) { width: 80px; text-align: center; }
+
+/* ✅ ACTION BUTTONS — IWAS OVERFLOW */
+#payrollTableBody td:last-child {
+    width: 1%;
+    white-space: nowrap;
+    padding: 8px 6px !important;
+}
+
+#payrollTableBody td:last-child .btn {
+    padding: 5px 8px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    font-size: 11px !important;
+    margin: 0 2px 0 0 !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px;
+}
+
+#payrollTableBody td:last-child .btn:last-child {
+    margin-right: 0 !important;
+}
+
+#payrollTableBody td:last-child .btn i {
+    font-size: 11px !important;
+}
+
+/* ✅ Para sa "Mark Received" na may text — i-hide ang text sa maliit na screen */
+@media (max-width: 1400px) {
+    #payrollTableBody td:last-child .btn .btn-text {
+        display: none;
+    }
+}
+
+
+/* ✅ Mark Received / Unlock — iisang size, para hindi gumagalaw ang layout kapag nag-toggle */
+#payrollTableBody td:last-child .btn.btn-toggle-status {
+    width: 118px !important;
+    min-width: 118px !important;
+    justify-content: center !important;
+}
+
+/* ✅ Table wrapper — para may scroll kung sobrang laki */
+.card-body {
+    overflow-x: auto;
+}
+
+.data-table {
+    min-width: 900px;
+}
+</style>
+{% endblock %}

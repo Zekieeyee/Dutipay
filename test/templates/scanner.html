@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dutipay QR Scanner</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #f8faf5;
+            --bg-secondary: #f0f4e8;
+            --bg-card: #ffffff;
+            --primary: #4a7c59;
+            --primary-dark: #3d6647;
+            --primary-light: #6b9e7a;
+            --accent-green: #6b8e23;
+            --accent-yellow: #e9c46a;
+            --accent-red: #c45c4a;
+            --text-primary: #2d3e2d;
+            --text-secondary: #5a6b5a;
+            --text-muted: #8a9a8a;
+            --border: #e0e7d5;
+            --border-light: #d0dac2;
+            --shadow: 0 2px 12px rgba(74, 124, 89, 0.08);
+            --shadow-lg: 0 8px 32px rgba(74, 124, 89, 0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(107, 142, 35, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(212, 163, 115, 0.04) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .scanner-header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.6s ease;
+            position: relative;
+        }
+
+        .scanner-header .logo {
+            font-size: 56px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .scanner-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .scanner-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Help Button */
+        .help-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            color: var(--primary);
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .help-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: rotate(-10deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(74, 124, 89, 0.35);
+        }
+
+        /* Info Banner */
+        .info-banner {
+            display: none;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 18px;
+            background: linear-gradient(135deg, rgba(233, 196, 106, 0.15), rgba(212, 163, 115, 0.08));
+            border: 1px solid rgba(233, 196, 106, 0.35);
+            border-left: 4px solid var(--accent-yellow);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            animation: fadeInUp 0.4s ease;
+        }
+        .info-banner.show { display: flex; }
+        .info-banner i {
+            color: #b8860b;
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .info-banner strong { color: var(--text-primary); }
+
+        /* Default mode banner */
+        .default-mode-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 18px;
+            background: linear-gradient(135deg, rgba(74,124,89,0.1), rgba(107,142,35,0.05));
+            border: 1px solid rgba(74,124,89,0.25);
+            border-left: 4px solid var(--primary);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .default-mode-banner i {
+            color: var(--primary);
+            font-size: 16px;
+        }
+
+        .default-mode-banner strong { color: var(--text-primary); }
+        .default-mode-banner.locked {
+            background: linear-gradient(135deg, rgba(233,196,106,0.15), rgba(212,163,115,0.08));
+            border-color: rgba(233,196,106,0.35);
+            border-left-color: var(--accent-yellow);
+        }
+        .default-mode-banner.locked i {
+            color: #b8860b;
+        }
+
+        /* Mode Selector (Time-In / Time-Out) */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+            background: var(--bg-card);
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .mode-btn {
+            padding: 16px 20px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: inherit;
+        }
+
+        .mode-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--primary);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            box-shadow: 0 4px 16px rgba(74, 124, 89, 0.3);
+            transform: scale(1.02);
+        }
+
+        .mode-btn.active.timeout {
+            background: linear-gradient(135deg, var(--accent-red), #a84a3a);
+            box-shadow: 0 4px 16px rgba(196, 92, 74, 0.3);
+        }
+
+        .mode-btn i { font-size: 18px; }
+
+        /* Scanner Type Selector */
+        .scanner-type-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+            background: var(--bg-card);
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .scanner-type-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+            position: relative;
+        }
+
+        .scanner-type-btn:hover:not(:disabled) {
+            background: var(--bg-secondary);
+            color: var(--primary);
+        }
+
+        .scanner-type-btn.active {
+            background: linear-gradient(135deg, var(--accent-green), var(--primary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(107, 142, 35, 0.3);
+        }
+
+        .scanner-type-btn i { font-size: 15px; }
+
+        .scanner-type-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .scanner-type-btn:disabled::after {
+            content: '🔒';
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        /* Camera Container */
+        .camera-container {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .camera-wrapper {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3;
+            margin-bottom: 20px;
+        }
+
+        #reader {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+            border-radius: 16px;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scan-frame {
+            width: 250px;
+            height: 250px;
+            position: relative;
+        }
+
+        .scan-frame::before,
+        .scan-frame::after,
+        .scan-frame .corner-bl,
+        .scan-frame .corner-br {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--primary);
+        }
+
+        .scan-frame::before {
+            top: 0; left: 0;
+            border-right: none;
+            border-bottom: none;
+            border-radius: 12px 0 0 0;
+        }
+
+        .scan-frame::after {
+            top: 0; right: 0;
+            border-left: none;
+            border-bottom: none;
+            border-radius: 0 12px 0 0;
+        }
+
+        .scan-frame .corner-bl {
+            bottom: 0; left: 0;
+            border-right: none;
+            border-top: none;
+            border-radius: 0 0 0 12px;
+        }
+
+        .scan-frame .corner-br {
+            bottom: 0; right: 0;
+            border-left: none;
+            border-top: none;
+            border-radius: 0 0 12px 0;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            animation: scanLine 2s ease-in-out infinite;
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        .camera-placeholder {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            gap: 12px;
+            background: linear-gradient(135deg, #f8faf5, #e8f0e0);
+        }
+
+        .camera-placeholder i {
+            font-size: 64px;
+            opacity: 0.3;
+            color: var(--primary);
+        }
+
+        .camera-placeholder p {
+            font-size: 14px;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 16px rgba(74, 124, 89, 0.3);
+        }
+
+        .btn-start:hover:not(:disabled) {
+            box-shadow: 0 8px 24px rgba(74, 124, 89, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, var(--accent-red), #a84a3a);
+            color: white;
+            box-shadow: 0 4px 16px rgba(196, 92, 74, 0.3);
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            box-shadow: 0 8px 24px rgba(196, 92, 74, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-process {
+            background: linear-gradient(135deg, var(--accent-green), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 16px rgba(107, 142, 35, 0.3);
+            width: 100%;
+        }
+
+        .btn-process:hover:not(:disabled) {
+            box-shadow: 0 8px 24px rgba(107, 142, 35, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* File Upload Panel */
+        .file-upload-panel {
+            display: none;
+        }
+
+        .file-upload-panel.active {
+            display: block;
+        }
+
+        .file-upload-area {
+            position: relative;
+            border: 3px dashed var(--border);
+            border-radius: 16px;
+            padding: 60px 30px;
+            text-align: center;
+            background: var(--bg-secondary);
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        .file-upload-area:hover,
+        .file-upload-area.dragover {
+            border-color: var(--primary);
+            background: var(--bg-card);
+        }
+
+        .file-upload-area input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .file-upload-icon {
+            font-size: 56px;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: block;
+            opacity: 0.7;
+        }
+
+        .file-upload-area h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .file-upload-area p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .file-upload-area small {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .file-preview {
+            display: none;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .file-preview.active {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .file-preview img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+        }
+
+        .file-preview-info { flex: 1; }
+
+        .file-preview-info .file-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .file-preview-info .file-size {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .btn-remove-file {
+            background: rgba(196, 92, 74, 0.1);
+            color: var(--accent-red);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-remove-file:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        /* Result Card */
+        .result-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            text-align: center;
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+            animation: fadeInUp 0.4s ease;
+        }
+
+        .result-card.success {
+            border-color: var(--accent-green);
+            background: linear-gradient(135deg, rgba(107, 142, 35, 0.08), rgba(107, 142, 35, 0.03));
+            box-shadow: 0 4px 20px rgba(107, 142, 35, 0.15);
+        }
+
+        .result-card.error {
+            border-color: var(--accent-red);
+            background: linear-gradient(135deg, rgba(196, 92, 74, 0.08), rgba(196, 92, 74, 0.03));
+            box-shadow: 0 4px 20px rgba(196, 92, 74, 0.15);
+        }
+
+        .result-icon {
+            font-size: 56px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .result-card.success .result-icon {
+            animation: bounceIn 0.6s ease;
+        }
+
+        .result-card.error .result-icon {
+            animation: shake 0.5s ease;
+        }
+
+        .result-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .result-card.success .result-title { color: var(--accent-green); }
+        .result-card.error .result-title { color: var(--accent-red); }
+
+        .result-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* History */
+        .history-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .history-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+        }
+
+        .history-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s;
+        }
+
+        .history-item:last-child { border-bottom: none; }
+        .history-item:hover { background: var(--bg-secondary); }
+
+        .history-photo-placeholder {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--border-light);
+            flex-shrink: 0;
+        }
+
+        .history-photo-placeholder i {
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+
+        .history-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .history-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .history-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .history-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .history-badge.in {
+            background: rgba(107, 142, 35, 0.12);
+            color: var(--accent-green);
+        }
+
+        .history-badge.out {
+            background: rgba(196, 92, 74, 0.12);
+            color: var(--accent-red);
+        }
+
+        .empty-history {
+            padding: 40px 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .empty-history i {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+            opacity: 0.3;
+            color: var(--primary);
+        }
+
+        /* Help Modal */
+        .help-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        .help-modal-overlay.active { display: flex; }
+
+        .help-modal {
+            background: var(--bg-card);
+            border-radius: 20px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: scaleIn 0.3s ease;
+        }
+
+        .help-modal-header {
+            padding: 24px 28px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--bg-card);
+            z-index: 1;
+        }
+        .help-modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .help-modal-close {
+            background: var(--bg-secondary);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .help-modal-close:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .help-modal-body {
+            padding: 24px 28px 28px;
+        }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+        .help-section:last-child { margin-bottom: 0; }
+
+        .help-section h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .help-card {
+            padding: 16px 18px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            border-left: 4px solid;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .help-card.green {
+            background: rgba(107, 142, 35, 0.08);
+            border-color: var(--accent-green);
+        }
+        .help-card.yellow {
+            background: rgba(233, 196, 106, 0.12);
+            border-color: var(--accent-yellow);
+        }
+        .help-card.blue {
+            background: rgba(74, 124, 89, 0.08);
+            border-color: var(--primary);
+        }
+        .help-card.red {
+            background: rgba(196, 92, 74, 0.08);
+            border-color: var(--accent-red);
+        }
+
+        .help-card h4 {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .help-card p, .help-card ol, .help-card ul {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .help-card ol, .help-card ul { padding-left: 20px; }
+        .help-card li { margin-bottom: 4px; }
+        .help-card strong { color: var(--text-primary); }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes scanLine {
+            0%, 100% { top: 0; }
+            50% { top: calc(100% - 3px); }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .scanner-header h1 { font-size: 22px; }
+            .mode-btn { padding: 12px 16px; font-size: 13px; }
+            .scanner-type-btn { padding: 10px 14px; font-size: 12px; }
+            .scan-frame { width: 180px; height: 180px; }
+            .result-icon { font-size: 44px; }
+            .help-btn { width: 34px; height: 34px; font-size: 16px; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+<div class="scanner-header">
+    <img src="{{ url_for('static', filename='images/DOG.png') }}"
+         alt="Dutipay" style="height: 60px; width: auto; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;">
+    <h1>Dutipay Attendance Scanner</h1>
+    <p>Scan QR code to record attendance</p>
+    <button class="help-btn" onclick="openHelpModal()">...</button>
+</div>
+
+        <!-- Default mode banner -->
+        <div class="default-mode-banner" id="defaultModeBanner" style="display: none;">
+            <i class="fas fa-info-circle" id="defaultModeIcon"></i>
+            <span>
+                <strong>Default mode:</strong> <span id="defaultModeText">Camera Scan</span>
+                <span id="defaultModeSubtext">(set by admin in Settings)</span>
+            </span>
+        </div>
+
+        <!-- Mode Selector (Time-In / Time-Out) -->
+        <div class="mode-selector">
+            <button class="mode-btn active" id="timeinBtn" onclick="setMode('in')">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Time-In</span>
+            </button>
+            <button class="mode-btn" id="timeoutBtn" onclick="setMode('out')">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Time-Out</span>
+            </button>
+        </div>
+
+        <!-- Scanner Type Selector (Camera / File Upload) -->
+        <div class="scanner-type-selector">
+            <button class="scanner-type-btn active" id="cameraTypeBtn" onclick="setScannerType('camera')">
+                <i class="fas fa-camera"></i>
+                <span>Camera Scan</span>
+            </button>
+            <button class="scanner-type-btn" id="fileTypeBtn" onclick="setScannerType('file')">
+                <i class="fas fa-image"></i>
+                <span>File Upload</span>
+            </button>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- ✅ NEW: Info banner sa File Upload mode -->
+        <!-- ============================================ -->
+<div class="info-banner" id="fileUploadInfoBanner">
+    <i class="fas fa-lightbulb"></i>
+    <div>
+        <strong>Backup mode — for the attendance operator.</strong>
+        Use this only when the attendance station has <strong>no webcam</strong> or the <strong>camera is broken</strong>.
+        The <strong>operator/admin</strong> takes a photo of the QR code (via phone or scanner) and uploads it here.
+        <strong>This is not for employee self-service.</strong>
+        <br>
+        <a href="javascript:void(0)" onclick="openHelpModal()" style="color: var(--primary); font-weight: 700; text-decoration: underline; margin-top: 4px; display: inline-block;">
+            <i class="fas fa-question-circle"></i> How to use?
+        </a>
+    </div>
+</div>
+
+        <!-- Camera Container -->
+        <div class="camera-container" id="cameraContainer">
+            <div class="camera-wrapper">
+                <div id="reader"></div>
+
+<div class="scan-overlay" id="scanOverlay" style="display: none;">
+    <div class="scan-frame">
+        <div class="scan-line"></div>
+        <div class="corner-bl"></div>
+        <div class="corner-br"></div>
+    </div>
+</div>
+
+<!-- ✅ IDAGDAG ITO: Countdown Overlay -->
+<div id="countdownOverlay" style="display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <div style="font-size: 100px; font-weight: 800; color: var(--accent-yellow); text-shadow: 0 4px 20px rgba(0,0,0,0.5);" id="countdownNum">3</div>
+    <div style="color: white; font-size: 18px; font-weight: 600; letter-spacing: 1px;">SMILE! TAKING PHOTO...</div>
+</div>
+
+<!-- ✅ IDAGDAG ITO: Preview Overlay -->
+<div id="previewOverlay" style="display: none; position: absolute; inset: 0; background: #000; z-index: 101; flex-direction: column;">
+    <img id="capturedPhoto" src="" style="width: 100%; height: 100%; object-fit: cover;">
+    <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); display: flex; gap: 12px; justify-content: center;">
+        <button class="btn btn-secondary" onclick="retakePhoto()" style="flex: 1; background: rgba(255,255,255,0.2); color: white; border: 2px solid white;">
+            <i class="fas fa-redo"></i> Retake
+        </button>
+        <button class="btn btn-primary" onclick="submitAttendance()" style="flex: 1;">
+            <i class="fas fa-check"></i> Confirm
+        </button>
+    </div>
+</div>
+
+                <div class="camera-placeholder" id="cameraPlaceholder">
+                    <i class="fas fa-camera"></i>
+                    <p>Click "Start Scanner" to begin</p>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-start" id="startBtn" onclick="startScanner()">
+                    <i class="fas fa-camera"></i>
+                    <span>Start Scanner</span>
+                </button>
+                <button class="btn btn-stop" id="stopBtn" onclick="stopScanner()" disabled>
+                    <i class="fas fa-stop"></i>
+                    <span>Stop</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- File Upload Container -->
+        <div class="camera-container file-upload-panel" id="fileUploadContainer">
+            <div class="file-preview" id="filePreview">
+                <img id="previewImage" src="" alt="Preview">
+                <div class="file-preview-info">
+                    <div class="file-name" id="fileName">image.jpg</div>
+                    <div class="file-size" id="fileSize">0 KB</div>
+                </div>
+                <button class="btn-remove-file" onclick="removeFile()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="file-upload-area" id="fileUploadArea">
+                <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+                <i class="fas fa-cloud-upload-alt file-upload-icon"></i>
+                <h3>Upload QR Code Image</h3>
+                <p>Click to browse or drag & drop</p>
+                <small>Accepted: JPG, PNG, WebP (Max 5MB)</small>
+            </div>
+
+            <button class="btn btn-process" id="processBtn" onclick="processFile()" disabled>
+                <i class="fas fa-search"></i>
+                <span>Scan Uploaded Image</span>
+            </button>
+        </div>
+
+        <!-- Result Card -->
+        <div class="result-card" id="resultCard">
+            <span class="result-icon" id="resultIcon">💤</span>
+            <div class="result-title" id="resultTitle">Ready to Scan</div>
+            <div class="result-message" id="resultMessage">Select mode and start scanner</div>
+        </div>
+
+        <!-- History -->
+        <div class="history-card">
+            <div class="history-header">
+                <h3><i class="fas fa-history"></i> Recent Scans</h3>
+            </div>
+            <div class="history-list" id="historyList">
+                <div class="empty-history">
+                    <i class="fas fa-qrcode"></i>
+                    <p>No scans yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- ============================================ -->
+<!-- ✅ NEW: Help Modal -->
+<!-- ============================================ -->
+<div class="help-modal-overlay" id="helpModal" onclick="closeHelpModalOnOverlay(event)">
+    <div class="help-modal" onclick="event.stopPropagation()">
+        <div class="help-modal-header">
+            <h2><i class="fas fa-question-circle" style="color: var(--primary);"></i> How to Use the Scanner</h2>
+            <button class="help-modal-close" onclick="closeHelpModal()">&times;</button>
+        </div>
+        <div class="help-modal-body">
+
+            <div class="help-section">
+                <h3>📷 Camera Scan (Recommended)</h3>
+                <div class="help-card green">
+                    <h4><i class="fas fa-check-circle"></i> Standard Mode</h4>
+                    <p>This is the <strong>primary mode</strong> for attendance. Requires a working <strong>webcam</strong> on the attendance device.</p>
+                    <p style="margin-bottom: 0;"><strong>How to use:</strong></p>
+                    <ol>
+                        <li>Click the <strong>"Camera Scan"</strong> tab</li>
+                        <li>Click <strong>"Start Scanner"</strong></li>
+                        <li>Point the employee's QR code at the camera</li>
+                        <li>Time-in or time-out is recorded automatically</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>🖼️ File Upload (Backup Mode)</h3>
+                <div class="help-card yellow">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Backup Only</h4>
+                    <p><strong>This is not for employee self-service.</strong> The <strong>attendance operator</strong> is responsible for uploading the QR code photo.</p>
+
+                    <p><strong>When to use this mode:</strong></p>
+                    <ul>
+                        <li>The webcam on the attendance station is not working</li>
+                        <li>The camera is broken or unavailable</li>
+                        <li>No internet connection (offline mode) — capture photos first, upload them later</li>
+                        <li>You need to batch-scan multiple employees (for example, employees who were unable to time-in during the morning)</li>
+                    </ul>
+
+                    <p><strong>How to use (step-by-step):</strong></p>
+                    <ol>
+                        <li><strong>Take a photo</strong> of the employee's QR code using a phone or scanner</li>
+                        <li>Transfer the photo to the attendance device via USB, email, Bluetooth, or a shared folder</li>
+                        <li>Click the <strong>"File Upload"</strong> tab in the scanner</li>
+                        <li>Click the <strong>upload area</strong> or drag & drop the image file</li>
+                        <li>Click <strong>"Scan Uploaded Image"</strong></li>
+                        <li>The QR code is scanned automatically from the image</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>⏰ Time-In vs. Time-Out</h3>
+                <div class="help-card blue">
+                    <h4><i class="fas fa-clock"></i> Choose the Right Mode</h4>
+                    <ul>
+                        <li><strong>Time-In</strong> — Use this when an employee arrives at work in the morning</li>
+                        <li><strong>Time-Out</strong> — Use this when an employee leaves work at the end of the day</li>
+                    </ul>
+                    <p style="margin-bottom: 0;"><strong>Note:</strong> An employee cannot time-in twice on the same day. They must time-in before they can time-out.</p>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>⚠️ Common Problems</h3>
+                <div class="help-card red">
+                    <h4><i class="fas fa-times-circle"></i> Camera Not Working?</h4>
+                    <ul>
+                        <li><strong>Check browser permissions</strong> — allow camera access in the site settings</li>
+                        <li><strong>Check if another app is using the camera</strong> — close that app first</li>
+                        <li><strong>Refresh the page</strong> and try again</li>
+                        <li>If the camera is completely broken — <strong>use File Upload mode</strong> as a backup</li>
+                    </ul>
+                </div>
+                <div class="help-card red">
+                    <h4><i class="fas fa-times-circle"></i> QR Code Not Scanning?</h4>
+                    <ul>
+                        <li>Make sure the <strong>photo is clear</strong> and not blurry</li>
+                        <li>Make sure the QR code is <strong>complete</strong> (not cut off)</li>
+                        <li>If printed — check that it is <strong>not smudged or faded</strong></li>
+                        <li>If shown on a phone — increase the <strong>screen brightness</strong></li>
+                    </ul>
+                </div>
+                <div class="help-card red">
+                    <h4><i class="fas fa-times-circle"></i> "Employee Not Found" Error?</h4>
+                    <ul>
+                        <li>Make sure the employee is <strong>registered</strong> in the system</li>
+                        <li>Check if the account is <strong>active</strong> (not deactivated)</li>
+                        <li>If a new hire — confirm the account was <strong>approved</strong> by the admin</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>💡 Best Practices</h3>
+                <div class="help-card green">
+                    <ul style="margin-bottom: 0;">
+                        <li><strong>Lock to Camera mode</strong> to avoid confusion — configure this in Admin Settings → QR & Scanner</li>
+                        <li><strong>Test the scanner first</strong> before deploying it at the actual attendance station</li>
+                        <li><strong>Print and laminate the QR codes</strong> of all employees so they last longer</li>
+                        <li>If a consistent problem occurs — <strong>report it to the admin</strong> so they can adjust the settings</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+        // =============================================
+        // API URL
+        // =============================================
+        let API_URL;
+        if (window.location.protocol === 'file:') {
+            API_URL = 'http://localhost:5000';
+        } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            API_URL = 'http://localhost:5000';
+        } else if (window.location.hostname.includes('ngrok')) {
+            API_URL = 'https://' + window.location.hostname;
+        } else if (window.location.hostname.includes('trycloudflare')) {
+            API_URL = window.location.origin;
+        } else if (/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)) {
+            API_URL = 'http://' + window.location.hostname + ':5000';
+        } else {
+            API_URL = window.location.origin;
+        }
+        console.log('💼 Dutipay Scanner API URL:', API_URL);
+
+        // =============================================
+        // STATE
+        // =============================================
+        let html5QrCode = null;
+        let currentMode = 'in';
+        let currentScannerType = 'camera';
+        let lockedScannerType = null;
+        let isProcessing = false;
+        let isScanning = false;
+        let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
+        let fileScanner = null;
+
+        // =============================================
+        // DOM ELEMENTS
+        // =============================================
+        const resultCard = document.getElementById('resultCard');
+        const resultIcon = document.getElementById('resultIcon');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultMessage = document.getElementById('resultMessage');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const scanOverlay = document.getElementById('scanOverlay');
+        const historyList = document.getElementById('historyList');
+        const cameraContainer = document.getElementById('cameraContainer');
+        const fileUploadContainer = document.getElementById('fileUploadContainer');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const filePreview = document.getElementById('filePreview');
+        const previewImage = document.getElementById('previewImage');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const processBtn = document.getElementById('processBtn');
+        const fileUploadInfoBanner = document.getElementById('fileUploadInfoBanner');
+
+        // =============================================
+        // ✅ NEW: HELP MODAL FUNCTIONS
+        // =============================================
+        function openHelpModal() {
+            document.getElementById('helpModal').classList.add('active');
+        }
+
+        function closeHelpModal() {
+            document.getElementById('helpModal').classList.remove('active');
+        }
+
+        function closeHelpModalOnOverlay(e) {
+            if (e.target.id === 'helpModal') {
+                closeHelpModal();
+            }
+        }
+
+        // Close on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeHelpModal();
+            }
+        });
+
+        // =============================================
+        // MODE SELECTION (Time-In / Time-Out)
+        // =============================================
+        function setMode(mode) {
+            currentMode = mode;
+            const timeinBtn = document.getElementById('timeinBtn');
+            const timeoutBtn = document.getElementById('timeoutBtn');
+
+            if (mode === 'in') {
+                timeinBtn.classList.add('active');
+                timeoutBtn.classList.remove('active', 'timeout');
+                updateResult('Ready for Time-In', 'Select QR code to scan', '💤', '');
+            } else {
+                timeoutBtn.classList.add('active', 'timeout');
+                timeinBtn.classList.remove('active');
+                updateResult('Ready for Time-Out', 'Select QR code to scan', '💤', '');
+            }
+        }
+
+        // =============================================
+        // SCANNER TYPE SELECTION (Camera / File)
+        // =============================================
+        function setScannerType(type) {
+            if (lockedScannerType && type !== lockedScannerType) {
+                const lockedName = lockedScannerType === 'camera' ? 'Camera Scan' : 'File Upload';
+                updateResult(
+                    '🔒 Mode Locked',
+                    `Locked to <strong>${lockedName}</strong> by the admin. Change it in Settings to switch.`,
+                    '🔒',
+                    'error'
+                );
+                return;
+            }
+
+            currentScannerType = type;
+            const cameraBtn = document.getElementById('cameraTypeBtn');
+            const fileBtn = document.getElementById('fileTypeBtn');
+
+            if (type === 'camera') {
+                cameraBtn.classList.add('active');
+                fileBtn.classList.remove('active');
+                cameraContainer.style.display = 'block';
+                fileUploadContainer.style.display = 'none';
+                fileUploadContainer.classList.remove('active');
+                fileUploadInfoBanner.classList.remove('show');
+
+                if (fileScanner) {
+                    try { fileScanner.clear(); } catch(e) {}
+                    fileScanner = null;
+                }
+
+                updateResult('Camera Mode', 'Click "Start Scanner" to begin', '📷', '');
+            } else {
+                fileBtn.classList.add('active');
+                cameraBtn.classList.remove('active');
+                cameraContainer.style.display = 'none';
+                fileUploadContainer.style.display = 'block';
+                fileUploadContainer.classList.add('active');
+                // ✅ Show info banner when File Upload mode is active
+                fileUploadInfoBanner.classList.add('show');
+
+                if (isScanning && html5QrCode) {
+                    html5QrCode.stop().catch(err => console.log(err));
+                    isScanning = false;
+                }
+
+                updateResult('File Upload Mode', 'Upload a QR code image to scan', '🖼️', '');
+            }
+
+            updateScannerTypeButtons();
+        }
+
+        // =============================================
+        // UPDATE SCANNER TYPE BUTTONS (Lock state)
+        // =============================================
+        function updateScannerTypeButtons() {
+            const cameraBtn = document.getElementById('cameraTypeBtn');
+            const fileBtn = document.getElementById('fileTypeBtn');
+
+            if (lockedScannerType === 'camera') {
+                cameraBtn.disabled = false;
+                fileBtn.disabled = true;
+                fileBtn.title = '🔒 Locked by admin — change in Settings';
+            } else if (lockedScannerType === 'file') {
+                cameraBtn.disabled = true;
+                fileBtn.disabled = false;
+                cameraBtn.title = '🔒 Locked by admin — change in Settings';
+            } else {
+                cameraBtn.disabled = false;
+                fileBtn.disabled = false;
+                cameraBtn.title = '';
+                fileBtn.title = '';
+            }
+        }
+
+        // =============================================
+        // UPDATE RESULT
+        // =============================================
+        function updateResult(title, message, icon, type = '') {
+            resultTitle.innerHTML = title;
+            resultMessage.innerHTML = message;
+            resultIcon.textContent = icon;
+            resultCard.className = 'result-card ' + type;
+        }
+
+        // =============================================
+        // START SCANNER (Camera)
+        // =============================================
+        function startScanner() {
+            if (isScanning) return;
+
+            cameraPlaceholder.style.display = 'none';
+            scanOverlay.style.display = 'flex';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            html5QrCode = new Html5Qrcode("reader");
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            html5QrCode.start(
+                { facingMode: "user" },
+                config,
+                onScanSuccess,
+                onScanError
+            ).then(() => {
+                isScanning = true;
+                updateResult('Scanning...', 'Position QR code in front of camera', '🔍', '');
+            }).catch(err => {
+                isScanning = false;
+                cameraPlaceholder.style.display = 'flex';
+                scanOverlay.style.display = 'none';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                updateResult('Camera Error', err.message + '<br><br><a href="javascript:void(0)" onclick="openHelpModal()" style="color: var(--primary); font-weight: 700;">Click here for help →</a>', '❌', 'error');
+            });
+        }
+
+        // =============================================
+        // STOP SCANNER
+        // =============================================
+        function stopScanner() {
+            if (!html5QrCode || !isScanning) return;
+
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                scanOverlay.style.display = 'none';
+                cameraPlaceholder.style.display = 'flex';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                updateResult('Scanner Stopped', 'Click "Start Scanner" to begin again', '⏹️', '');
+            }).catch(err => {
+                console.error('Stop error:', err);
+            });
+        }
+
+        // =============================================
+        // FILE UPLOAD HANDLERS
+        // =============================================
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('dragover');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                updateResult('File Too Large', 'Maximum upload size is 5MB', '❌', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                updateResult('Invalid File', 'Only image files are allowed (JPG, PNG, WebP)', '❌', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                filePreview.classList.add('active');
+                fileUploadArea.style.display = 'none';
+                processBtn.disabled = false;
+
+                updateResult('File Ready', `"${file.name}" is loaded. Click "Scan Uploaded Image".`, '✅', '');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeFile() {
+            fileInput.value = '';
+            filePreview.classList.remove('active');
+            fileUploadArea.style.display = 'block';
+            processBtn.disabled = true;
+
+            updateResult('File Upload Mode', 'Upload a QR code image to scan', '🖼️', '');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // =============================================
+        // PROCESS FILE
+        // =============================================
+        async function processFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                updateResult('No File', 'Please upload an image first', '❌', 'error');
+                return;
+            }
+
+            if (isProcessing) return;
+            isProcessing = true;
+
+            processBtn.disabled = true;
+            const originalHTML = processBtn.innerHTML;
+            processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+
+            updateResult('Scanning Image...', 'Processing uploaded QR code', '⏳', '');
+
+            try {
+                let hiddenReader = document.getElementById('fileReader');
+                if (!hiddenReader) {
+                    hiddenReader = document.createElement('div');
+                    hiddenReader.id = 'fileReader';
+                    hiddenReader.style.display = 'none';
+                    document.body.appendChild(hiddenReader);
+                }
+
+                fileScanner = new Html5Qrcode("fileReader");
+
+                const result = await fileScanner.scanFile(file, true);
+
+                console.log('✅ QR detected:', result);
+                playBeep();
+
+                await sendAttendance(result, null);
+
+            } catch (err) {
+                console.error('Scan error:', err);
+                updateResult('QR Not Detected', 'The QR code in the image could not be read. Try a clearer picture.<br><br><a href="javascript:void(0)" onclick="openHelpModal()" style="color: var(--primary); font-weight: 700;">Click here for help →</a>', '❌', 'error');
+                playErrorSound();
+            } finally {
+                isProcessing = false;
+                processBtn.disabled = false;
+                processBtn.innerHTML = originalHTML;
+
+                if (fileScanner) {
+                    try { fileScanner.clear(); } catch(e) {}
+                    fileScanner = null;
+                }
+            }
+        }
+
+        // =============================================
+        // GET DEVICE INFO
+        // =============================================
+        function getDeviceInfo() {
+            const ua = navigator.userAgent;
+            let device = 'Unknown';
+            let os = 'Unknown';
+            let browser = 'Unknown';
+
+            if (ua.includes('Windows')) os = 'Windows';
+            else if (ua.includes('Mac')) os = 'macOS';
+            else if (ua.includes('Linux')) os = 'Linux';
+            else if (ua.includes('Android')) os = 'Android';
+            else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+
+            if (ua.includes('Chrome')) browser = 'Chrome';
+            else if (ua.includes('Firefox')) browser = 'Firefox';
+            else if (ua.includes('Safari')) browser = 'Safari';
+            else if (ua.includes('Edge')) browser = 'Edge';
+
+            if (/Mobile|Android|iPhone/.test(ua)) device = 'Mobile';
+            else if (/Tablet|iPad/.test(ua)) device = 'Tablet';
+            else device = 'Desktop';
+
+            return `${device} - ${os} - ${browser}`;
+        }
+
+        // =============================================
+        // CAMERA SCAN SUCCESS
+        // =============================================
+// =============================================
+// ✅ NEW: GLOBAL VARIABLE FOR SCAN
+// =============================================
+let scannedQrData = null;
+let capturedImageData = null;
+
+// =============================================
+// CAMERA SCAN SUCCESS (Trigger Countdown)
+// =============================================
+function onScanSuccess(decodedText) {
+    if (isProcessing) return;
+    isProcessing = true;
+
+    if (navigator.vibrate) navigator.vibrate(100);
+    playBeep();
+
+    scannedQrData = decodedText;
+
+    // I-pause muna ang scanner
+    if (html5QrCode && isScanning) {
+        html5QrCode.pause(true);
+    }
+
+    scanOverlay.style.display = 'none';
+    updateResult('QR Detected!', 'Please look at the camera...', '📸', '');
+    
+    // Simulan ang countdown
+    startCountdown();
+}
+
+function onScanError(error) { /* Ignore */ }
+
+// =============================================
+// ✅ NEW: 3-SECOND COUNTDOWN
+// =============================================
+function startCountdown() {
+    const countdownOverlay = document.getElementById('countdownOverlay');
+    const countdownNum = document.getElementById('countdownNum');
+    countdownOverlay.style.display = 'flex';
+    
+    let count = 3;
+    countdownNum.textContent = count;
+
+    const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+            countdownNum.textContent = count;
+        } else {
+            clearInterval(timer);
+            countdownOverlay.style.display = 'none';
+            capturePhoto();
+        }
+    }, 1000);
+}
+
+// =============================================
+// ✅ NEW: CAPTURE PHOTO WITH TIMESTAMP WATERMARK
+// =============================================
+async function capturePhoto() {
+    try {
+        const video = document.querySelector('#reader video');
+        if (!video) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+
+        // 1. Draw video frame
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // 2. Add Watermark (Date & Time)
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' });
+        const timeStr = now.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila' });
+        const text = `Dutipay | ${dateStr} ${timeStr}`;
+
+        ctx.font = 'bold 24px Inter, sans-serif';
+        
+        // Background shadow for text
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; 
+        ctx.fillRect(10, canvas.height - 50, canvas.width - 20, 40);
+        
+        // White text
+        ctx.fillStyle = '#ffffff'; 
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width / 2, canvas.height - 30);
+
+        // 3. Save image
+        capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
+
+        // 4. Show Preview
+        document.getElementById('capturedPhoto').src = capturedImageData;
+        document.getElementById('previewOverlay').style.display = 'flex';
+
+    } catch (e) {
+        console.error('Photo capture error:', e);
+        updateResult('Camera Error', 'Failed to capture photo.', '❌', 'error');
+        isProcessing = false;
+        if (html5QrCode) html5QrCode.resume();
+    }
+}
+
+// =============================================
+// ✅ NEW: RETAKE & SUBMIT BUTTONS
+// =============================================
+function retakePhoto() {
+    capturedImageData = null;
+    scannedQrData = null;
+    document.getElementById('previewOverlay').style.display = 'none';
+    
+    if (html5QrCode) html5QrCode.resume();
+    scanOverlay.style.display = 'flex';
+    updateResult('Scanning...', 'Position QR code in front of camera', '🔍', '');
+    isProcessing = false;
+}
+
+function submitAttendance() {
+    if (!scannedQrData || !capturedImageData) return;
+
+    document.getElementById('previewOverlay').style.display = 'none';
+    updateResult('Processing...', 'Sending attendance data...', '⏳', '');
+    
+    // I-reuse yung existing sendAttendance function mo
+    sendAttendance(scannedQrData, capturedImageData).then(() => {
+        capturedImageData = null;
+        scannedQrData = null;
+        isProcessing = false;
+        
+        // Resume scanner pag tapos
+        setTimeout(() => {
+            if (html5QrCode && isScanning) html5QrCode.resume();
+            scanOverlay.style.display = 'flex';
+        }, 2000);
+    });
+}
+
+        // =============================================
+        // SEND ATTENDANCE
+        // =============================================
+        async function sendAttendance(qrData, photoData) {
+            const endpoint = currentMode === 'in'
+                ? `${API_URL}/api/attendance/timein`
+                : `${API_URL}/api/attendance/timeout`;
+
+            const deviceInfo = getDeviceInfo();
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        qr_code_data: qrData,
+                        photo: photoData,
+                        device_info: deviceInfo
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const modeText = currentMode === 'in' ? 'Time-In' : 'Time-Out';
+                    updateResult(`✅ ${modeText} Successful!`, data.message, '✅', 'success');
+
+                    addToHistory({
+                        name: data.message.replace(/Time-In recorded for |Time-Out recorded for |✅ /g, ''),
+                        qr: qrData,
+                        mode: currentMode,
+                        time: new Date().toLocaleTimeString(),
+                        device: deviceInfo
+                    });
+
+                    playSuccessSound();
+                } else {
+                    updateResult('❌ Scan Failed', data.message || 'Unknown error', '❌', 'error');
+                    playErrorSound();
+                }
+            } catch (error) {
+                updateResult('❌ Connection Error', 'Cannot reach server. Is Flask running?', '❌', 'error');
+                playErrorSound();
+            } finally {
+                isProcessing = false;
+                setTimeout(() => {
+                    if (!isScanning) {
+                        updateResult('Ready to Scan', 'Click "Start Scanner" to continue', '💤', '');
+                    }
+                }, 3000);
+            }
+        }
+
+        // =============================================
+        // HISTORY MANAGEMENT (No photo — privacy)
+        // =============================================
+        function addToHistory(entry) {
+            const safeEntry = {
+                name: entry.name,
+                qr: entry.qr,
+                mode: entry.mode,
+                time: entry.time,
+                device: entry.device
+            };
+            scanHistory.unshift(safeEntry);
+            if (scanHistory.length > 10) scanHistory.pop();
+            localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (scanHistory.length === 0) {
+                historyList.innerHTML = `
+                    <div class="empty-history">
+                        <i class="fas fa-qrcode"></i>
+                        <p>No scans yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            historyList.innerHTML = scanHistory.map(item => `
+                <div class="history-item">
+                    <div class="history-photo-placeholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="history-info">
+                        <span class="history-name">${item.name || item.qr}</span>
+                        <span class="history-time">${item.time} • ${item.device || 'Unknown'}</span>
+                    </div>
+                    <span class="history-badge ${item.mode}">
+                        ${item.mode === 'in' ? 'Time-In' : 'Time-Out'}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        // =============================================
+        // SOUND EFFECTS
+        // =============================================
+        function playBeep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 800;
+                osc.type = 'sine';
+                gain.gain.value = 0.1;
+                osc.start();
+                setTimeout(() => osc.stop(), 100);
+            } catch (e) {}
+        }
+
+        function playSuccessSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 1200;
+                osc.type = 'sine';
+                gain.gain.value = 0.1;
+                osc.start();
+                osc.frequency.setValueAtTime(1600, ctx.currentTime + 0.1);
+                setTimeout(() => osc.stop(), 200);
+            } catch (e) {}
+        }
+
+        function playErrorSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 300;
+                osc.type = 'square';
+                gain.gain.value = 0.1;
+                osc.start();
+                setTimeout(() => osc.stop(), 300);
+            } catch (e) {}
+        }
+
+        // =============================================
+        // INITIALIZATION
+        // =============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ Farm Scanner ready');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlMode = urlParams.get('mode');
+            const urlLocked = urlParams.get('locked');
+
+            if (urlMode === 'camera' || urlMode === 'file') {
+                if (urlLocked === '1') {
+                    lockedScannerType = urlMode;
+                    console.log(`🔒 Scanner LOCKED to: ${urlMode}`);
+                } else {
+                    console.log(`📷 Scanner mode: ${urlMode} (flexible)`);
+                }
+
+                setScannerType(urlMode);
+
+                const banner = document.getElementById('defaultModeBanner');
+                banner.style.display = 'flex';
+                document.getElementById('defaultModeText').textContent =
+                    urlMode === 'file' ? 'File Upload' : 'Camera Scan';
+
+                if (lockedScannerType) {
+                    banner.classList.add('locked');
+                    document.getElementById('defaultModeIcon').className = 'fas fa-lock';
+                    document.getElementById('defaultModeSubtext').textContent =
+                        '(locked by admin — change in Settings)';
+                }
+            } else {
+                setScannerType('camera');
+            }
+
+            updateScannerTypeButtons();
+
+            const oldHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
+            const cleanHistory = oldHistory.map(item => ({
+                name: item.name,
+                qr: item.qr,
+                mode: item.mode,
+                time: item.time,
+                device: item.device
+            }));
+            localStorage.setItem('scanHistory', JSON.stringify(cleanHistory));
+            scanHistory = cleanHistory;
+
+            renderHistory();
+        });
+    </script>
+</body>
+</html>

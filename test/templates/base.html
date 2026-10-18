@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - {{ farm_display_name or 'Dutipay' }}</title>
+
+{% if farm_logo_url %}
+<link rel="icon" type="image/png" href="{{ farm_logo_url }}">
+{% else %}
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/DOG.png') }}">
+{% endif %}
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-left">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+<a href="/dashboard" class="navbar-brand">
+    {% if farm_logo_url %}
+        <img src="{{ farm_logo_url }}" alt="{{ farm_display_name }}" class="brand-logo-img">
+        <span class="brand-text">{{ farm_display_name }}</span>
+    {% else %}
+        <img src="{{ url_for('static', filename='images/DOG.png') }}"
+             alt="Dutipay" class="brand-logo-img">
+        <span class="brand-text">Dutipay</span>
+    {% endif %}
+</a>
+        </div>
+
+        {% if active_page %}
+        <div class="navbar-center">
+            <span class="page-badge">
+                <i class="fas fa-{% if active_page == 'dashboard' %}chart-line{% elif active_page == 'employees' %}users{% elif active_page == 'jobs' %}briefcase{% elif active_page == 'attendance' %}clipboard-list{% elif active_page == 'payroll' %}money-bill-wave{% elif active_page == 'reports' %}chart-bar{% elif active_page == 'scanner' %}download{% elif active_page == 'settings' %}cog{% else %}circle{% endif %}"></i>
+                {{ active_page.replace('_', ' ').title() }}
+            </span>
+        </div>
+        {% endif %}
+
+        <div class="navbar-right">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+            <div class="user-info">
+                <div class="user-avatar">{{ full_name[0] if full_name else 'U' }}</div>
+                <div class="user-details">
+                    <span class="user-name">{{ full_name }}</span>
+                    <span class="user-role">{{ role }}</span>
+                </div>
+            </div>
+            <a href="#" class="btn-logout" title="Logout" onclick="confirmLogout(event)">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </nav>
+
+    <!-- SIDEBAR + MAIN -->
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>MENU</h3>
+            </div>
+                        <ul class="sidebar-menu">
+    {% if role == 'super_admin' %}
+    <!-- SUPER ADMIN MENU -->
+    <li class="{% if active_page == 'super_admin' %}active{% endif %}">
+        <a href="/super-admin">
+            <i class="fas fa-crown"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="{% if active_page == 'super_admin_registrations' %}active{% endif %}">
+        <a href="/super-admin/registrations">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Registrations</span>
+        </a>
+    </li>
+    <li class="{% if active_page == 'super_admin_businesses' %}active{% endif %}">
+        <a href="/super-admin/businesses">
+            <i class="fas fa-building"></i>
+            <span>Businesses</span>
+        </a>
+    </li>
+    {% else %}
+    <!-- REGULAR USERS MENU -->
+    <li class="{% if active_page == 'dashboard' %}active{% endif %}">
+        <a href="/dashboard">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+
+    {% if role not in ['admin', 'manager'] %}
+    <li class="{% if active_page == 'daily_reports' %}active{% endif %}">
+        <a href="/daily-reports">
+            <i class="fas fa-file-alt"></i>
+            <span>My Daily Reports</span>
+        </a>
+    </li>
+    {% endif %}
+
+    {% if role in ['admin', 'manager'] %}
+    <li class="{% if active_page == 'employees' %}active{% endif %}">
+        <a href="/employees">
+            <i class="fas fa-users"></i>
+            <span>Employees</span>
+            {% if role == 'admin' %}
+            <span class="sidebar-badge" id="workerRequestsBadge" style="display: none;">0</span>
+            {% endif %}
+        </a>
+    </li>
+    {% endif %}
+
+    <li class="{% if active_page == 'attendance' %}active{% endif %}">
+        <a href="/attendance">
+            <i class="fas fa-clipboard-list"></i>
+            <span>Attendance</span>
+        </a>
+    </li>
+
+    <li class="{% if active_page == 'payroll' %}active{% endif %}">
+        <a href="/payroll">
+            <i class="fas fa-money-bill-wave"></i>
+            <span>Payroll</span>
+        </a>
+    </li>
+
+    {% if role in ['admin', 'manager'] %}
+    <li class="{% if active_page == 'reports' %}active{% endif %}">
+        <a href="/reports">
+            <i class="fas fa-chart-bar"></i>
+            <span>Reports</span>
+        </a>
+    </li>
+    <li class="{% if active_page == 'daily_reports_admin' %}active{% endif %}">
+        <a href="/reports/daily">
+            <i class="fas fa-file-alt"></i>
+            <span>Employee Daily Reports</span>
+        </a>
+    </li>
+    {% endif %}
+    {% if role == 'admin' %}
+    <li class="{% if active_page == 'scanner' %}active{% endif %}">
+        <a href="/scanner/download">
+            <i class="fas fa-download"></i>
+            <span>Download Scanner</span>
+        </a>
+    </li>
+    <li class="{% if active_page == 'audit_logs' %}active{% endif %}">
+        <a href="/audit-logs">
+            <i class="fas fa-history"></i>
+            <span>Audit Logs</span>
+        </a>
+    </li>
+    {% endif %}
+<li class="{% if active_page == 'my_qr' %}active{% endif %}">
+    <a href="/my-qr">
+        <i class="fas fa-qrcode"></i>
+        <span>My QR Code</span>
+    </a>
+</li>
+
+    <li class="{% if active_page == 'settings' %}active{% endif %}">
+        <a href="/settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+        </a>
+    </li>
+    {% endif %}
+</ul>
+
+            <!-- Sidebar footer -->
+            <div class="sidebar-footer">
+                <p>{{ farm_display_name or 'Dutipay' }}</p>
+                <span>Powered by Dutipay</span>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+<!-- ✅ SESSION TIMEOUT WARNING MODAL -->
+<div id="sessionTimeoutModal" class="modal-overlay" style="display: none; z-index: 10000;">
+    <div class="modal-box" style="max-width: 420px; text-align: center; border-top: 4px solid var(--accent-yellow);">
+        <div class="modal-icon" style="font-size: 56px; margin-bottom: 16px; animation: pulseWarning 2s infinite;">⏰</div>
+        <h3 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 12px;">Session Expiring Soon</h3>
+        <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+            Your session will expire in <strong id="sessionCountdown" style="color: var(--accent-red); font-size: 16px;">1 minute</strong> due to inactivity.
+            <br><br>
+            Click <strong>Extend Session</strong> to stay logged in.
+        </p>
+        <div class="modal-actions" style="justify-content: center; gap: 12px;">
+            <button class="btn btn-secondary" onclick="logoutNow()" style="flex: 1;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+            <button class="btn btn-primary" onclick="extendSession()" style="flex: 1;">
+                <i class="fas fa-clock"></i> Extend Session
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- LOGOUT MODAL -->
+    <div id="logoutModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-icon">🚪</div>
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to logout? You will need to login again to access your account.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeLogoutModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-danger" onclick="performLogout()">
+                    <i class="fas fa-sign-out-alt"></i> Yes, Logout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ FEEDBACK MODAL (UX Rating) -->
+    <div id="feedbackModal" class="modal-overlay" style="display: none; z-index: 10500;">
+        <div class="modal-box" style="max-width: 480px; border-top: 5px solid var(--accent-yellow); border-radius: 24px;">
+            <div id="feedbackContent" style="padding: 32px 24px; text-align: center;">
+                <div style="font-size: 56px; margin-bottom: 12px;">🌟</div>
+                <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">How are we doing?</h2>
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+                    You've been using Dutipay for a while now. We'd love to hear your thoughts to help us improve!
+                </p>
+
+                <div id="starRating" style="display: flex; justify-content: center; gap: 8px; font-size: 40px; cursor: pointer; margin-bottom: 20px; color: #e0e0e0;">
+                    <i class="fas fa-star" data-rating="1"></i>
+                    <i class="fas fa-star" data-rating="2"></i>
+                    <i class="fas fa-star" data-rating="3"></i>
+                    <i class="fas fa-star" data-rating="4"></i>
+                    <i class="fas fa-star" data-rating="5"></i>
+                </div>
+
+                <div id="feedbackTextContainer" style="display: none; margin-bottom: 20px;">
+                    <textarea id="feedbackText" rows="3" placeholder="Tell us what you love or what we can improve..."
+                              style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; background: var(--bg-secondary); color: var(--text-primary); resize: vertical;"></textarea>
+                </div>
+
+                <div id="feedbackActions" style="display: none; gap: 12px; justify-content: center;">
+                    <button class="btn btn-secondary" onclick="dismissFeedback()" style="flex: 1;">Maybe Later</button>
+                    <button class="btn btn-primary" onclick="submitFeedback()" style="flex: 1;"><i class="fas fa-paper-plane"></i> Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='java/main.js') }}"></script>
+    
+    <script>
+        // ✅ 1. THEME LOGIC
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeIcon(next);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        // ✅ 2. SIDEBAR & LOGOUT LOGIC
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('active');
+        }
+
+        function confirmLogout(event) {
+            event.preventDefault();
+            document.getElementById('logoutModal').style.display = 'flex';
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').style.display = 'none';
+        }
+
+        function performLogout() {
+            window.location.href = '/logout';
+        }
+
+        // ✅ 3. CUTOFF INDICATOR & BADGE
+        async function loadCutoffIndicator() {
+            const indicator = document.getElementById('cutoffIndicator');
+            const label = document.getElementById('cutoffLabel');
+            if (!indicator || !label) return;
+            try {
+                const res = await fetch('/api/cutoff/current');
+                const data = await res.json();
+                if (data.success) {
+                    label.textContent = data.data.label;
+                    indicator.style.display = 'inline-flex';
+                }
+            } catch (e) {}
+        }
+
+        async function refreshWorkerRequestsBadge() {
+            const badge = document.getElementById('workerRequestsBadge');
+            if (!badge) return;
+            try {
+                const res = await fetch('/api/worker-requests/count');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.success && data.count > 0) {
+                    badge.textContent = data.count;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (e) {}
+        }
+
+        // ✅ 4. SESSION WARNING LOGIC
+        (function() {
+            const userRole = "{{ role|lower }}";
+            if (!userRole || userRole === 'unknown' || userRole === 'login') return;
+
+            const SESSION_TIMEOUT_MINUTES = {{ SESSION_TIMEOUT_MINUTES | default(20) }};
+            const WARNING_THRESHOLD_MINUTES = 1; 
+            
+            const TIMEOUT_MS = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+            const WARNING_MS = WARNING_THRESHOLD_MINUTES * 60 * 1000;
+            
+            let lastActivity = Date.now();
+            let isWarningShown = false;
+            let countdownInterval;
+
+            function resetActivity() {
+                if (isWarningShown) return; 
+                lastActivity = Date.now();
+            }
+
+            ['mousedown', 'keypress', 'scroll', 'touchstart', 'click'].forEach(evt => {
+                document.addEventListener(evt, resetActivity, true);
+            });
+
+            setInterval(() => {
+                const idleTime = Date.now() - lastActivity;
+                const remainingMs = TIMEOUT_MS - idleTime;
+
+                if (remainingMs > 0 && remainingMs <= WARNING_MS && !isWarningShown) {
+                    showWarningModal();
+                }
+
+                if (remainingMs <= 0 && !isWarningShown) {
+                    logoutNow();
+                }
+            }, 1000);
+
+            function showWarningModal() {
+                isWarningShown = true;
+                document.getElementById('sessionTimeoutModal').style.display = 'flex';
+                
+                let secondsLeft = WARNING_THRESHOLD_MINUTES * 60;
+                
+                countdownInterval = setInterval(() => {
+                    secondsLeft--;
+                    
+                    if (secondsLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        logoutNow();
+                        return;
+                    }
+
+                    const m = Math.floor(secondsLeft / 60);
+                    const s = secondsLeft % 60;
+                    const display = m > 0 ? `${m}m ${s}s` : `${s} seconds`;
+                    
+                    document.getElementById('sessionCountdown').textContent = display;
+                }, 1000);
+            }
+
+            window.extendSession = function() {
+                clearInterval(countdownInterval);
+                isWarningShown = false;
+                lastActivity = Date.now();
+                document.getElementById('sessionTimeoutModal').style.display = 'none';
+                fetch('/api/cutoff/current').catch(e => {}); 
+            };
+
+            window.logoutNow = function() {
+                clearInterval(countdownInterval);
+                window.location.href = '/logout';
+            };
+        })();
+
+        // ✅ 5. FEEDBACK PROMPT LOGIC
+        (function() {
+            const role = "{{ role|lower }}";
+            const hasSeen = {{ session.get('has_seen_feedback_prompt', False) | tojson }};
+            const accountAgeDays = {{ session.get('account_age_days', 0) }};
+
+            if (role !== 'super_admin' && !hasSeen && accountAgeDays >= 3) {
+                setTimeout(() => {
+                    const modal = document.getElementById('feedbackModal');
+                    if (modal) modal.style.display = 'flex';
+                }, 2000);
+            }
+
+            const stars = document.querySelectorAll('#starRating i');
+            const starContainer = document.getElementById('starRating');
+            const textContainer = document.getElementById('feedbackTextContainer');
+            const actionsContainer = document.getElementById('feedbackActions');
+            let selectedRating = 0;
+
+            if (stars.length > 0) {
+                stars.forEach(star => {
+                    star.addEventListener('mouseover', function() {
+                        const rating = this.getAttribute('data-rating');
+                        stars.forEach(s => {
+                            s.style.color = s.getAttribute('data-rating') <= rating ? '#e9c46a' : '#e0e0e0';
+                        });
+                    });
+
+                    star.addEventListener('click', function() {
+                        selectedRating = parseInt(this.getAttribute('data-rating'));
+                        stars.forEach(s => {
+                            s.style.color = s.getAttribute('data-rating') <= selectedRating ? '#e9c46a' : '#e0e0e0';
+                        });
+                        textContainer.style.display = 'block';
+                        actionsContainer.style.display = 'flex';
+                    });
+                });
+
+                starContainer.addEventListener('mouseleave', function() {
+                    stars.forEach(s => {
+                        s.style.color = s.getAttribute('data-rating') <= selectedRating ? '#e9c46a' : '#e0e0e0';
+                    });
+                });
+            }
+
+            window.dismissFeedback = function() {
+                document.getElementById('feedbackModal').style.display = 'none';
+            };
+
+            window.submitFeedback = async function() {
+                if (selectedRating === 0) return;
+                const text = document.getElementById('feedbackText').value.trim();
+                const btn = document.querySelector('#feedbackActions .btn-primary');
+                const orig = btn.innerHTML;
+                
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+                try {
+                    const res = await fetch('/api/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rating: selectedRating, feedback_text: text })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        document.getElementById('feedbackContent').innerHTML = `
+                            <div style="padding: 24px 0; text-align: center;">
+                                <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
+                                <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Thank You!</h2>
+                                <p style="font-size: 14px; color: var(--text-secondary);">Your feedback helps us build a better Dutipay for you.</p>
+                                <button class="btn btn-primary" onclick="document.getElementById('feedbackModal').style.display='none'" style="margin-top: 20px; width: 100%;">Close</button>
+                            </div>
+                        `;
+                    } else {
+                        alert('❌ ' + data.message);
+                        btn.disabled = false;
+                        btn.innerHTML = orig;
+                    }
+                } catch (e) {
+                    alert('❌ Error: ' + e.message);
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                }
+            };
+        })();
+
+        // ✅ 6. INITIALIZATION
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            updateThemeIcon(savedTheme);
+
+            loadCutoffIndicator();
+            refreshWorkerRequestsBadge();
+            setInterval(refreshWorkerRequestsBadge, 30000);
+        });
+
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('logoutModal');
+            if (e.target === modal) {
+                closeLogoutModal();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLogoutModal();
+            }
+        });
+    </script>
+
+    <style>
+        /* ==================== DYNAMIC BRAND LOGO ==================== */
+        .brand-logo-img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            transition: transform 0.3s;
+        }
+
+        .navbar-brand:hover .brand-logo-img {
+            transform: scale(1.05);
+        }
+
+        /* ==================== SIDEBAR FOOTER ==================== */
+        .sidebar-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer p {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .sidebar-footer span {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ==================== SIDEBAR NOTIFICATION BADGE ==================== */
+        .sidebar-badge {
+            margin-left: auto;
+            background: linear-gradient(135deg, #c45c4a, #a84a3a);
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(196, 92, 74, 0.4);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { box-shadow: 0 2px 8px rgba(196, 92, 74, 0.4); }
+            50% { box-shadow: 0 2px 12px rgba(196, 92, 74, 0.7); }
+        }
+
+        /* ==================== NAVBAR CENTER PAGE BADGE ==================== */
+        .navbar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+        }
+
+        .page-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 16px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(74, 124, 89, 0.12), rgba(107, 142, 35, 0.12));
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            border: 1px solid rgba(74, 124, 89, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .page-badge i { font-size: 12px; }
+
+        [data-theme="dark"] .page-badge {
+            background: linear-gradient(135deg, rgba(107, 158, 122, 0.18), rgba(139, 176, 64, 0.15));
+            color: var(--primary-light, #8bb89a);
+            border-color: rgba(107, 158, 122, 0.3);
+        }
+
+        /* ==================== MODAL OVERLAY ==================== */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-box {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: scaleIn 0.3s ease;
+        }
+
+        .modal-icon { font-size: 48px; margin-bottom: 16px; }
+
+        .modal-box h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .modal-box p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .navbar-center { display: none; }
+            .sidebar-footer { display: none; }
+        }
+    </style>
+
+</body>
+</html>

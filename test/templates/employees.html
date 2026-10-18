@@ -1,0 +1,1354 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🧾 Employee Management</h1>
+    <p class="subtitle">Manage your workers</p>
+</div>
+
+<!-- ✅ ABSENT WARNING BANNER -->
+<div class="absent-warning-banner" id="absentWarningBanner" style="display: none;">
+    <div class="absent-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <div class="absent-content">
+        <h4><span class="absent-count">0</span> employee(s) may have been absent for 14+ days</h4>
+        <p>Please review their attendance records and decide whether to deactivate their accounts.</p>
+    </div>
+</div>
+
+<!-- WORKER REQUESTS (admin Only) -->
+{% if role == 'admin' %}
+<div class="card" id="pendingRequestsCard" style="display: none;">
+    <div class="card-header" style="background: rgba(233, 196, 106, 0.1);">
+        <h3>⏳ Employee Requests <span class="badge badge-warning" id="pendingCount">0 pending</span></h3>
+    </div>
+    <div class="card-body">
+
+        <!-- Filter tabs -->
+        <div class="request-tabs" id="requestTabs">
+            <button class="request-tab active" data-filter="Pending" onclick="filterRequests('Pending')">
+                Pending <span class="tab-count" id="tabCountPending">0</span>
+            </button>
+            <button class="request-tab" data-filter="Approved" onclick="filterRequests('Approved')">
+                Approved <span class="tab-count" id="tabCountApproved">0</span>
+            </button>
+            <button class="request-tab" data-filter="Rejected" onclick="filterRequests('Rejected')">
+                Rejected <span class="tab-count" id="tabCountRejected">0</span>
+            </button>
+        </div>
+
+        <div id="pendingRequestsList">
+            <p style="text-align:center;color:var(--text-muted);padding:32px;">Loading...</p>
+        </div>
+
+    </div>
+</div>
+{% endif %}
+
+<!-- APPROVAL REVIEW MODAL -->
+<div id="approvalModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 580px;">
+        <div class="modal-header">
+            <h3>✅ Review Employee Request</h3>
+            <button class="modal-close" onclick="closeApprovalModal()">&times;</button>
+        </div>
+        <div style="padding: 24px;">
+            <div class="alert alert-info" style="margin-bottom: 20px; font-size: 13px;">
+                <i class="fas fa-info-circle"></i>
+                <span>Review the applicant's information below. Once approved, an account will be created automatically.</span>
+            </div>
+
+            <div id="approvalApplicantInfo" style="background: var(--bg-secondary); padding: 18px; border-radius: 12px; margin-bottom: 20px;">
+            </div>
+
+            <div style="background: rgba(233, 196, 106, 0.1); padding: 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; border-left: 4px solid var(--accent-yellow);">
+                <p style="font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">
+                    <i class="fas fa-cog"></i> Defaults on approval:
+                </p>
+                <ul style="color: var(--text-secondary); padding-left: 20px; line-height: 1.7; margin: 0; font-size: 12px;">
+                    <li><strong>Position:</strong> Employee (edit later sa Employee list)</li>
+                    <li><strong>Salary:</strong> ₱0 (i-set mo sa Edit Employee after approval)</li>
+                    <li><strong>Schedule:</strong> 08:00 - 17:00</li>
+                    <li><strong>Employee Code:</strong> Auto-generated (EMP###)</li>
+                    <li><strong>Password:</strong> Yung pinili ng applicant</li>
+                </ul>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-danger" onclick="rejectFromModal()">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+                <button class="btn btn-success" id="approveBtnModal" onclick="confirmApproval()">
+                    <i class="fas fa-check"></i> Approve & Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EMPLOYEE LIST -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Employee List <span class="badge badge-info" id="employeeCount">0</span></h3>
+        <div style="display: flex; gap: 12px;">
+            {% if role == 'admin' %}
+            <button class="btn btn-primary" onclick="openAddModal()">
+                <i class="fas fa-plus"></i> Add Employee
+            </button>
+            {% endif %}
+            {% if role == 'manager' %}
+            <button class="btn btn-warning" onclick="openRequestModal()">
+                <i class="fas fa-paper-plane"></i> Request New Employee
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-wrap">
+        <table class="data-table employee-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Salary</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="employeeTable">
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted);">
+                        Loading...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal (admin only) -->
+<div id="employeeModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Add Employee</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="employeeForm" onsubmit="saveEmployee(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" id="firstName" required placeholder="Juan">
+                </div>
+                <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" id="lastName" required placeholder="Dela Cruz">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Position *</label>
+                    <select id="position" required>
+                        <option value="employee">employee</option>
+                        <option value="manager">manager</option>
+                        <option value="Supervisor">Supervisor</option>
+                        <option value="Cashier">Cashier</option>
+                        <option value="Sales Clerk">Sales Clerk</option>
+                        <option value="Warehouse">Warehouse</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" placeholder="juan@email.com">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Basic Salary (₱)</label>
+                    <input type="number" id="basicSalary" placeholder="15000" step="0.01">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Schedule In</label>
+                    <input type="time" id="scheduleIn" value="08:00">
+                </div>
+                <div class="form-group">
+                    <label>Schedule Out</label>
+                    <input type="time" id="scheduleOut" value="17:00">
+                </div>
+            </div>
+
+            <div class="alert alert-success" style="margin-top: 16px; font-size: 13px;">
+                <i class="fas fa-info-circle"></i>
+                <span>Employee code, username, and password will be <strong>auto-generated</strong> by the system.</span>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-success" id="saveBtn">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Request Modal (manager only) -->
+<div id="requestModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📤 Request New Worker</h3>
+            <button class="modal-close" onclick="closeRequestModal()">&times;</button>
+        </div>
+        <form id="requestForm" onsubmit="submitRequest(event)" enctype="multipart/form-data">
+            <div class="alert alert-info" style="margin-bottom: 20px; font-size: 13px;">
+                <i class="fas fa-info-circle"></i>
+                <span>Submit the applicant's details along with their resume and bio data. The admin will review before creating the account.</span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" id="reqFirstName" required placeholder="Juan">
+                </div>
+                <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" id="reqLastName" required placeholder="Dela Cruz">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reqEmail" placeholder="juan@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="reqPhone" placeholder="09123456789">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Position *</label>
+                    <input type="text" id="reqPosition" placeholder="e.g., Cashier, Sales Clerk, employee" required>
+                </div>
+                <div class="form-group">
+                    <label>Proposed Salary (₱)</label>
+                    <input type="number" id="reqBasicSalary" placeholder="15000" step="0.01">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Schedule In</label>
+                    <input type="time" id="reqScheduleIn" value="08:00">
+                </div>
+                <div class="form-group">
+                    <label>Schedule Out</label>
+                    <input type="time" id="reqScheduleOut" value="17:00">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📎 Resume / CV</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="reqResume" accept=".pdf,.jpg,.jpeg,.png">
+                        <label for="reqResume" class="file-upload-label">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span id="reqResumeLabel">Click to upload resume (PDF, JPG, PNG)</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>🪪 Bio Data / ID</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="reqBioData" accept=".pdf,.jpg,.jpeg,.png">
+                        <label for="reqBioData" class="file-upload-label">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span id="reqBioLabel">Click to upload bio data (PDF, JPG, PNG)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Notes to admin</label>
+                <textarea id="reqNotes" rows="2" placeholder="Any extra notes..." style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%;"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeRequestModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-warning" id="requestBtn">
+                    <i class="fas fa-paper-plane"></i> Submit Request
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Schedule / Reschedule Interview Modal (admin) - SINGLE COPY -->
+<div id="interviewModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 560px;">
+        <div class="modal-header">
+            <h3 id="interviewModalTitle">📅 Schedule Interview</h3>
+            <button class="modal-close" onclick="closeInterviewModal()">&times;</button>
+        </div>
+        <form id="interviewForm" onsubmit="submitScheduleInterview(event)">
+            <input type="hidden" id="interviewReqId">
+
+            <div class="alert alert-info" style="margin-bottom: 20px; font-size: 13px;">
+                <i class="fas fa-info-circle"></i>
+                <span id="interviewApplicantLine">Scheduling interview for <strong>—</strong></span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Interview Date *</label>
+                    <input type="date" id="interviewDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Interview Time *</label>
+                    <input type="time" id="interviewTime" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Location / Method</label>
+                <input type="text" id="interviewLocation" placeholder="e.g., Office 2F, Zoom link, Phone call">
+            </div>
+
+            <div class="form-group">
+                <label>Notes for Applicant</label>
+                <textarea id="interviewNotes" rows="2" placeholder="e.g., Bring valid ID, ask for Ms. Cruz at the front desk..."
+                          style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%;"></textarea>
+            </div>
+
+            <div class="alert alert-success" style="margin-top: 16px; font-size: 13px;">
+                <i class="fas fa-paper-plane"></i>
+                <span>An interview invite will be <strong>emailed to the applicant</strong> and the manager will be notified.</span>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeInterviewModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" id="interviewSubmitBtn">
+                    <i class="fas fa-paper-plane"></i> Send Invite
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Documents Viewer Modal (admin) -->
+<div id="documentsModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h3>📁 Worker Documents</h3>
+            <button class="modal-close" onclick="closeDocumentsModal()">&times;</button>
+        </div>
+        <div style="padding: 24px;" id="documentsContent">
+            <p style="text-align:center;color:var(--text-muted);">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Hire Directly Confirmation Modal (admin) -->
+<div id="hireDirectModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3>⚡ Hire Directly (Skip Interview)</h3>
+            <button class="modal-close" onclick="closeHireDirectModal()">&times;</button>
+        </div>
+        <div style="padding: 24px;">
+            <div class="alert alert-warning" style="margin-bottom: 20px; font-size: 13px; background: rgba(233,196,106,0.15); border-left: 4px solid var(--accent-yellow); padding: 14px; border-radius: 10px; display: flex; gap: 10px;">
+                <i class="fas fa-exclamation-triangle" style="color: #b8860b; font-size: 18px;"></i>
+                <span>This will <strong>immediately create an employee account</strong> for this applicant and skip the interview step. Use this for walk-ins or fast-track hires only.</span>
+            </div>
+
+            <div id="hireDirectDetails" style="background: var(--bg-secondary); padding: 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; line-height: 1.8;">
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeHireDirectModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="hireDirectBtn" onclick="confirmHireDirectly()">
+                    <i class="fas fa-check"></i> Yes, Hire Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Modal -->
+<div id="qrModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>📱 Employee QR Code</h3>
+            <button class="modal-close" onclick="closeQRModal()">&times;</button>
+        </div>
+
+        <div style="padding: 32px 24px; text-align: center;">
+            <div class="alert alert-success" style="margin-bottom: 24px;">
+                <i class="fas fa-check-circle"></i>
+                <span id="qrSuccessMsg">Employee added successfully!</span>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h2 id="qrEmployeeName" style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;"></h2>
+                <p id="qrEmployeeCode" style="font-size: 14px; color: var(--text-muted);"></p>
+                <p id="qrEmployeePosition" style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;"></p>
+            </div>
+
+            <div style="background: white; padding: 20px; border-radius: 16px; display: inline-block; margin-bottom: 24px; border: 2px solid var(--border);">
+                <img id="qrImage" src="" alt="QR Code" style="width: 250px; height: 250px; display: block;">
+            </div>
+
+            <div style="background: var(--bg-secondary); padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: left; border: 1px solid var(--border);">
+                <p style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px;">
+                    <i class="fas fa-key"></i> Login Credentials
+                </p>
+                <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span><strong>Username:</strong></span>
+                        <code id="qrUsername" style="color: var(--primary); font-weight: 600;"></code>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span><strong>Password:</strong></span>
+                        <code id="qrPassword" style="color: var(--primary); font-weight: 600;"></code>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="printQR()">
+                    <i class="fas fa-print"></i> Print QR
+                </button>
+                <button class="btn btn-success" onclick="downloadQR()">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <button class="btn btn-info" onclick="closeQRModal()">
+                    <i class="fas fa-check"></i> Done
+                </button>
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); text-align: left;">
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+                    <strong>📋 Next Steps:</strong><br>
+                    1. Print this QR code<br>
+                    2. Give it to <span id="qrWorkerName" style="color: var(--primary); font-weight: 600;"></span><br>
+                    3. Worker uses QR for attendance scanning<br>
+                    4. Worker logs in with credentials above<br>
+                    5. Worker can change password via <strong>Forgot Password</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Filter tabs */
+.request-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+}
+.request-tab {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.request-tab:hover {
+    background: var(--bg-card);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.request-tab.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(74,124,89,0.25);
+}
+.tab-count {
+    background: rgba(255,255,255,0.25);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.request-tab:not(.active) .tab-count {
+    background: var(--bg-card);
+    color: var(--text-muted);
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.status-pending { background: rgba(233,196,106,0.2); color: #b8860b; border: 1px solid rgba(233,196,106,0.4); }
+.status-approved { background: rgba(107,142,35,0.15); color: var(--accent-green); border: 1px solid rgba(107,142,35,0.3); }
+.status-rejected { background: rgba(196,92,74,0.15); color: var(--accent-red); border: 1px solid rgba(196,92,74,0.3); }
+
+.applicant-cell strong { display: block; color: var(--text-primary); }
+.applicant-cell small { display: block; color: var(--text-muted); font-size: 11px; }
+</style>
+
+<script>
+let editingId = null;
+let currentQRData = null;
+const userRole = "{{ role|lower }}";
+let allRequests = [];
+let currentFilter = 'Pending';
+
+// =============================================
+// UTILITY: Normalize time to HH:MM:SS
+// =============================================
+function normalizeTime(v, defaultVal) {
+    if (!v) return defaultVal || '08:00:00';
+    let s = String(v).trim();
+    if (/^\d{2}:\d{2}$/.test(s)) return s + ':00';
+    if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s;
+    const parts = s.split(':');
+    if (parts.length >= 3) return `${parts[0]}:${parts[1]}:${parts[2]}`;
+    return s;
+}
+
+// =============================================
+// UTILITY: Short time display
+// =============================================
+function shortTime(v) {
+    if (!v) return '-';
+    const m = String(v).trim().match(/^(\d{1,2}):(\d{2})/);
+    return m ? m[1].padStart(2, '0') + ':' + m[2] : String(v);
+}
+
+// =============================================
+// UTILITY: Escape HTML
+// =============================================
+function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+// =============================================
+// LOAD EMPLOYEES
+// =============================================
+async function loadEmployees() {
+    try {
+        const res = await fetch('/api/employees');
+        const data = await res.json();
+        const tbody = document.getElementById('employeeTable');
+
+        if (!data.success || !data.data.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No employees found</td></tr>';
+            return;
+        }
+
+        const countEl = document.getElementById('employeeCount');
+        if (countEl) countEl.textContent = `${data.data.length} total`;
+
+        const sorted = [...data.data].sort((a, b) => {
+            const aActive = a.is_active !== false;
+            const bActive = b.is_active !== false;
+            if (aActive !== bActive) return aActive ? -1 : 1;
+            if (a.is_absent_flagged !== b.is_absent_flagged) return a.is_absent_flagged ? -1 : 1;
+            return 0;
+        });
+
+        const flaggedCount = sorted.filter(e => e.is_absent_flagged).length;
+        const banner = document.getElementById('absentWarningBanner');
+        if (banner) {
+            if (flaggedCount > 0) {
+                banner.style.display = 'flex';
+                banner.querySelector('.absent-count').textContent = flaggedCount;
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        tbody.innerHTML = sorted.map(emp => {
+            const isActive = emp.is_active !== false;
+            const isFlagged = emp.is_absent_flagged;
+            let rowClass = '';
+            let statusBadge = '';
+
+            if (!isActive) {
+                rowClass = 'employee-row-inactive';
+                statusBadge = '<span class="badge badge-inactive"><i class="fas fa-circle"></i> INACTIVE</span>';
+            } else if (isFlagged) {
+                rowClass = 'employee-row-flagged';
+                statusBadge = `<span class="badge badge-warning-absent" title="Last attendance: ${emp.last_attendance_date || 'Never'}"><i class="fas fa-exclamation-triangle"></i> ${emp.days_since_attendance}D ABSENT</span>`;
+            } else {
+                statusBadge = '<span class="badge badge-active"><i class="fas fa-circle"></i> ACTIVE</span>';
+            }
+
+            const toggleIcon = isActive ? 'fa-user-slash' : 'fa-user-check';
+            const toggleTitle = isActive ? 'Deactivate' : 'Activate';
+            const toggleClass = isActive ? 'btn-inactive' : 'btn-active';
+            const lastAttInfo = emp.last_attendance_date
+                ? `<small class="last-att">Last: ${emp.last_attendance_date}</small>`
+                : '<small class="last-att">No records</small>';
+
+            return `
+                <tr class="${rowClass}">
+                    <td><strong>${emp.employee_code}</strong></td>
+                    <td>${emp.first_name} ${emp.last_name}${isFlagged ? lastAttInfo : ''}</td>
+                    <td>${emp.position || '-'}</td>
+                    <td>₱${parseFloat(emp.basic_salary || 0).toLocaleString()}</td>
+                    <td>${shortTime(emp.schedule_in)} - ${shortTime(emp.schedule_out)}</td>
+                    <td>${statusBadge}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-info" onclick='viewQRCode(${JSON.stringify(emp)})' title="View QR Code">
+                            <i class="fas fa-qrcode"></i>
+                        </button>
+                        ${userRole === 'admin' ? `
+                            <button class="btn btn-sm btn-warning" onclick='editEmployee(${JSON.stringify(emp)})' title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="resetPassword(${emp.id}, '${emp.employee_code}')" title="Reset Password">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <button class="btn btn-sm ${toggleClass}" onclick="toggleEmployeeStatus(${emp.id}, ${isActive})" title="${toggleTitle}">
+                                <i class="fas ${toggleIcon}"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error(e);
+        document.getElementById('employeeTable').innerHTML =
+            '<tr><td colspan="7" style="text-align:center;color:var(--accent-red);">Failed to load employees</td></tr>';
+    }
+}
+
+// =============================================
+// LOAD REQUESTS (Admin)
+// =============================================
+async function loadPendingRequests() {
+    if (userRole !== 'admin') return;
+
+    try {
+        const res = await fetch('/api/worker-requests');
+        const data = await res.json();
+
+        if (!data.success) {
+            console.error('Failed to load requests:', data.message);
+            return;
+        }
+
+        allRequests = data.data || [];
+
+        // Update tab counts — FIXED: No "active" key
+        const counts = {
+            Pending: allRequests.filter(r => r.status === 'Pending' || r.status === 'For Interview').length,
+            Approved: allRequests.filter(r => r.status === 'Approved').length,
+            Rejected: allRequests.filter(r => r.status === 'Rejected').length,
+        };
+        document.getElementById('tabCountPending').textContent = counts.Pending;
+        document.getElementById('tabCountApproved').textContent = counts.Approved;
+        document.getElementById('tabCountRejected').textContent = counts.Rejected;
+
+        // Show card if there are any requests at all
+        document.getElementById('pendingRequestsCard').style.display = allRequests.length > 0 ? 'block' : 'none';
+        // FIXED: counts.active → counts.Pending
+        document.getElementById('pendingCount').textContent = counts.Pending + ' pending';
+
+        renderRequestsList();
+    } catch (e) {
+        console.error('Load requests error:', e);
+    }
+}
+
+function filterRequests(status) {
+    currentFilter = status;
+    document.querySelectorAll('.request-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.filter === status);
+    });
+    renderRequestsList();
+}
+
+function renderRequestsList() {
+    const container = document.getElementById('pendingRequestsList');
+
+    // FIXED: Filter base sa currentFilter
+    let filtered = allRequests;
+    if (currentFilter === 'Pending') {
+        filtered = allRequests.filter(r => r.status === 'Pending' || r.status === 'For Interview');
+    } else {
+        filtered = allRequests.filter(r => r.status === currentFilter);
+    }
+
+    // Sort: recent first
+    filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    if (!filtered.length) {
+        container.innerHTML = `
+            <div class="sa-empty" style="text-align:center;padding:40px 20px;">
+                <div class="sa-empty-icon"><i class="fas fa-check-circle"></i></div>
+                <h3>No requests</h3>
+                <p>No ${escapeHtml(currentFilter.toLowerCase())} requests at the moment.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map(req => {
+        const statusBadges = {
+            'Pending': '<span class="badge badge-warning">⏳ Pending</span>',
+            'For Interview': '<span class="badge badge-warning">⏳ For Interview</span>',
+            'Approved': '<span class="badge badge-success">✅ Hired</span>',
+            'Rejected': '<span class="badge badge-danger">❌ Rejected</span>'
+        };
+        const statusBadge = statusBadges[req.status] || '';
+
+        const actions = (req.status === 'Pending' || req.status === 'For Interview') ? `
+            <button class="btn btn-sm btn-success" onclick="openApprovalModal(${req.id})" title="Review & Approve">
+                <i class="fas fa-check"></i> Review
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="rejectRequest(${req.id})" title="Reject">
+                <i class="fas fa-times"></i> Reject
+            </button>
+        ` : '<span style="color: var(--text-muted); font-size: 12px;">—</span>';
+
+        return `
+        <div style="padding: 16px 18px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--bg-card); transition: all 0.2s;">
+            <div style="flex: 1; min-width: 200px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
+                    <strong style="font-size: 15px; color: var(--text-primary);">${escapeHtml(req.first_name)} ${escapeHtml(req.last_name)}</strong>
+                    ${statusBadge}
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.7;">
+                    ${req.email ? `<div><i class="fas fa-envelope" style="width: 14px;"></i> ${escapeHtml(req.email)}</div>` : ''}
+                    ${req.phone ? `<div><i class="fas fa-phone" style="width: 14px;"></i> ${escapeHtml(req.phone)}</div>` : ''}
+                    ${req.date_of_birth ? `<div><i class="fas fa-birthday-cake" style="width: 14px;"></i> ${escapeHtml(req.date_of_birth)}</div>` : ''}
+                </div>
+            </div>
+            <div class="action-buttons">
+                ${actions}
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+// =============================================
+// APPROVE / REJECT
+// =============================================
+async function rejectRequest(reqId) {
+    const reason = prompt('❌ Rejection reason (for internal record — not shown to applicant):');
+    if (reason === null) return;
+
+    try {
+        const res = await fetch(`/api/worker-requests/${reqId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            alert('✅ Request rejected. Applicant and manager have been notified.');
+            loadPendingRequests();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// SCHEDULE INTERVIEW
+// =============================================
+function closeInterviewModal() {
+    document.getElementById('interviewModal').style.display = 'none';
+}
+
+async function submitScheduleInterview(e) {
+    e.preventDefault();
+
+    const reqId = document.getElementById('interviewReqId').value;
+    const dateVal = document.getElementById('interviewDate').value;
+    const timeVal = document.getElementById('interviewTime').value;
+    const location = document.getElementById('interviewLocation').value;
+    const notes = document.getElementById('interviewNotes').value;
+
+    if (!confirm(`📤 Send this interview invite?\n\nThe applicant will be notified by email.`)) return;
+
+    try {
+        const btn = document.getElementById('interviewSubmitBtn');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+        const res = await fetch(`/api/worker-requests/${reqId}/schedule-interview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                interview_date: dateVal,
+                interview_time: normalizeTime(timeVal, '09:00:00'),
+                interview_location: location,
+                interview_notes: notes
+            })
+        });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = original;
+
+        if (result.success) {
+            closeInterviewModal();
+            alert('✅ ' + result.message);
+            loadPendingRequests();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// REQUEST MODAL (manager)
+// =============================================
+function openRequestModal() {
+    document.getElementById('requestForm').reset();
+    document.getElementById('reqScheduleIn').value = '08:00';
+    document.getElementById('reqScheduleOut').value = '17:00';
+    document.getElementById('reqPosition').value = '';
+    document.getElementById('reqResumeLabel').textContent = 'Click to upload resume (PDF, JPG, PNG)';
+    document.getElementById('reqBioLabel').textContent = 'Click to upload bio data (PDF, JPG, PNG)';
+    document.getElementById('requestModal').style.display = 'flex';
+}
+
+function closeRequestModal() {
+    document.getElementById('requestModal').style.display = 'none';
+}
+
+async function submitRequest(e) {
+    e.preventDefault();
+
+    if (!confirm('📤 Submit this worker request to the admin?')) return;
+
+    const formData = new FormData();
+    formData.append('first_name', document.getElementById('reqFirstName').value);
+    formData.append('last_name', document.getElementById('reqLastName').value);
+    formData.append('email', document.getElementById('reqEmail').value);
+    formData.append('phone', document.getElementById('reqPhone').value);
+    formData.append('position', document.getElementById('reqPosition').value);
+    formData.append('basic_salary', document.getElementById('reqBasicSalary').value || 0);
+    formData.append('schedule_in', normalizeTime(document.getElementById('reqScheduleIn').value, '08:00:00'));
+    formData.append('schedule_out', normalizeTime(document.getElementById('reqScheduleOut').value, '17:00:00'));
+    formData.append('notes', document.getElementById('reqNotes').value);
+
+    const resumeFile = document.getElementById('reqResume').files[0];
+    const bioFile = document.getElementById('reqBioData').files[0];
+
+    if (resumeFile) {
+        if (resumeFile.size > 10 * 1024 * 1024) { alert('❌ Resume too large. Max 10MB.'); return; }
+        formData.append('resume', resumeFile);
+    }
+    if (bioFile) {
+        if (bioFile.size > 10 * 1024 * 1024) { alert('❌ Bio data too large. Max 10MB.'); return; }
+        formData.append('bio_data', bioFile);
+    }
+
+    try {
+        const btn = document.getElementById('requestBtn');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+        const res = await fetch('/api/worker-requests', { method: 'POST', body: formData });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = original;
+
+        if (result.success) {
+            alert('✅ ' + result.message);
+            closeRequestModal();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// MODAL FUNCTIONS (admin) — Add/Edit Employee
+// =============================================
+function openAddModal() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'Add Employee';
+    document.getElementById('employeeForm').reset();
+    document.getElementById('scheduleIn').value = '08:00';
+    document.getElementById('scheduleOut').value = '17:00';
+    document.getElementById('position').value = 'employee';
+    document.getElementById('employeeModal').style.display = 'flex';
+}
+
+function editEmployee(emp) {
+    editingId = emp.id;
+    document.getElementById('modalTitle').textContent = 'Edit Employee';
+    document.getElementById('firstName').value = emp.first_name;
+    document.getElementById('lastName').value = emp.last_name;
+    document.getElementById('email').value = emp.email || '';
+
+    const positionSelect = document.getElementById('position');
+    const empPosition = emp.position || 'employee';
+
+    let found = false;
+    for (let option of positionSelect.options) {
+        if (option.value === empPosition) {
+            positionSelect.value = empPosition;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        const newOption = document.createElement('option');
+        newOption.value = empPosition;
+        newOption.textContent = empPosition;
+        positionSelect.appendChild(newOption);
+        positionSelect.value = empPosition;
+    }
+
+    document.getElementById('basicSalary').value = emp.basic_salary || 0;
+    document.getElementById('scheduleIn').value = emp.schedule_in || '08:00';
+    document.getElementById('scheduleOut').value = emp.schedule_out || '17:00';
+    document.getElementById('employeeModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('employeeModal').style.display = 'none';
+}
+
+// =============================================
+// SAVE EMPLOYEE
+// =============================================
+async function saveEmployee(e) {
+    e.preventDefault();
+
+    const isEditing = editingId !== null;
+    const confirmMsg = isEditing ? '💾 Save changes to this employee?' : '➕ Add this new employee?';
+    if (!confirm(confirmMsg)) return;
+
+    const positionValue = document.getElementById('position').value;
+
+    const data = {
+        first_name: document.getElementById('firstName').value,
+        last_name: document.getElementById('lastName').value,
+        email: document.getElementById('email').value,
+        position: positionValue,
+        role: positionValue.toLowerCase(),
+        basic_salary: document.getElementById('basicSalary').value,
+        schedule_in: normalizeTime(document.getElementById('scheduleIn').value, '08:00:00'),
+        schedule_out: normalizeTime(document.getElementById('scheduleOut').value, '17:00:00')
+    };
+
+    const url = editingId ? `/api/employees/${editingId}` : '/api/employees';
+    const method = editingId ? 'PUT' : 'POST';
+
+    try {
+        const btn = document.getElementById('saveBtn');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = original;
+
+        if (result.success) {
+            closeModal();
+            if (!isEditing && result.data && result.data[0]) {
+                showQRCodeModal({
+                    ...result.data[0],
+                    username: result.username,
+                    password: result.password
+                });
+            } else {
+                alert('✅ ' + result.message);
+            }
+            loadEmployees();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+async function toggleEmployeeStatus(id, currentlyActive) {
+    const message = currentlyActive
+        ? '⚠️ Deactivate this employee?\n\nThey will no longer be able to log in, but their records will be kept.'
+        : '✅ Activate this employee?\n\nThey will be able to log in again and use their account.';
+    if (!confirm(message)) return;
+
+    try {
+        const res = await fetch(`/api/employees/${id}/toggle-status`, { method: 'POST' });
+        const result = await res.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            loadEmployees();
+        } else {
+            showToast('❌ ' + result.message, 'error');
+        }
+    } catch (e) {
+        showToast('❌ Error: ' + e.message, 'error');
+    }
+}
+
+function showToast(msg, type = 'success') {
+    const t = document.createElement('div');
+    t.className = 'toast toast-' + type;
+    t.textContent = msg;
+    t.style.cssText = `
+        position: fixed; top: 24px; right: 24px;
+        padding: 14px 20px; border-radius: 12px;
+        color: white; font-size: 14px; font-weight: 600;
+        z-index: 9999;
+        background: ${type === 'success' ? 'linear-gradient(135deg,#4a7c59,#6b8e23)' : 'linear-gradient(135deg,#c45c4a,#a84a3a)'};
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
+    `;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+async function resetPassword(empId, empCode) {
+    const confirmed = confirm(`🔑 Reset password for ${empCode}?\n\nThe new password will be: password123`);
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/api/employees/${empId}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            alert(`✅ Password Reset!\n\nUsername: ${result.username}\nNew Password: ${result.new_password}`);
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// QR CODE MODAL
+// =============================================
+async function showQRCodeModal(employee) {
+    try {
+        const qrModal = document.getElementById('qrModal');
+        if (!qrModal) return;
+        qrModal.style.display = 'flex';
+
+        const fullName = `${employee.first_name} ${employee.last_name}`;
+
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        const setSrc = (id, src) => { const el = document.getElementById(id); if (el) el.src = src; };
+
+        setText('qrSuccessMsg', `✅ ${fullName} added successfully!`);
+        setText('qrEmployeeName', fullName);
+        setText('qrEmployeeCode', employee.employee_code);
+        setText('qrEmployeePosition', employee.position || 'employee');
+        setText('qrWorkerName', fullName);
+        setText('qrUsername', employee.username || employee.employee_code.toLowerCase());
+        setText('qrPassword', employee.password || 'password123');
+
+        const res = await fetch(`/api/employees/${employee.id}/qr`);
+        const data = await res.json();
+
+        if (data.success) {
+            setSrc('qrImage', data.qr_code);
+            currentQRData = { ...data, employee };
+        } else {
+            alert('❌ Failed to generate QR code: ' + (data.message || 'Unknown'));
+        }
+    } catch (e) {
+        console.error('QR Modal Error:', e);
+        alert('❌ Failed to load QR code: ' + e.message);
+    }
+}
+
+function viewQRCode(employee) { showQRCodeModal(employee); }
+
+function closeQRModal() {
+    document.getElementById('qrModal').style.display = 'none';
+    currentQRData = null;
+}
+
+// =============================================
+// PRINT QR
+// =============================================
+function printQR() {
+    if (!currentQRData) { alert('⚠️ No QR code to print'); return; }
+
+    const employeeName = document.getElementById('qrEmployeeName').textContent;
+    const employeeCode = document.getElementById('qrEmployeeCode').textContent;
+    const employeePosition = document.getElementById('qrEmployeePosition').textContent;
+    const qrImageSrc = document.getElementById('qrImage').src;
+    const username = document.getElementById('qrUsername').textContent;
+    const password = document.getElementById('qrPassword').textContent;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>QR Code - ${employeeName}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: 'Inter', Arial, sans-serif; padding: 40px; text-align: center; }
+                .id-card { width: 400px; margin: 0 auto; padding: 30px; border: 3px solid #4a7c59; border-radius: 20px; background: white; }
+                .header { font-size: 24px; font-weight: 800; color: #4a7c59; margin-bottom: 20px; }
+                .employee-name { font-size: 22px; font-weight: 700; color: #2d3e2d; margin-bottom: 8px; }
+                .employee-code { font-size: 16px; color: #5a6b5a; margin-bottom: 4px; }
+                .employee-position { font-size: 14px; color: #8a9a8a; margin-bottom: 24px; }
+                .qr-container { display: inline-block; padding: 16px; background: white; border: 2px solid #e0e7d5; border-radius: 12px; margin-bottom: 20px; }
+                .qr-container img { width: 250px; height: 250px; display: block; }
+                .credentials { background: #f0f4e8; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: left; font-size: 13px; }
+                .credentials strong { color: #2d3e2d; }
+                .credentials code { color: #4a7c59; font-weight: 600; }
+                .footer { font-size: 12px; color: #8a9a8a; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e7d5; }
+            </style>
+        </head>
+        <body>
+            <div class="id-card">
+                <div class="header">🌾 FarmSync</div>
+                <div class="employee-name">${employeeName}</div>
+                <div class="employee-code">${employeeCode}</div>
+                <div class="employee-position">${employeePosition}</div>
+                <div class="qr-container"><img src="${qrImageSrc}" alt="QR Code"></div>
+                <div class="credentials">
+                    <strong>Login Credentials:</strong><br>
+                    Username: <code>${username}</code><br>
+                    Password: <code>${password}</code>
+                </div>
+                <div class="footer">
+                    Scan this QR code for attendance<br>
+                    FarmSync Attendance & Payroll System
+                </div>
+            </div>
+            <script>
+                window.onload = function() { window.print(); setTimeout(() => window.close(), 1000); };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function downloadQR() {
+    if (!currentQRData) { alert('⚠️ No QR code to download'); return; }
+    const employeeCode = document.getElementById('qrEmployeeCode').textContent;
+    const qrImageSrc = document.getElementById('qrImage').src;
+    const link = document.createElement('a');
+    link.href = qrImageSrc;
+    link.download = `QR_${employeeCode}_${new Date().toISOString().split('T')[0]}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    alert('✅ QR code downloaded!');
+}
+
+// =============================================
+// FILE UPLOAD PREVIEW
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const reqResume = document.getElementById('reqResume');
+    if (reqResume) {
+        reqResume.addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (f) document.getElementById('reqResumeLabel').textContent = f.name;
+        });
+    }
+    const reqBioData = document.getElementById('reqBioData');
+    if (reqBioData) {
+        reqBioData.addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (f) document.getElementById('reqBioLabel').textContent = f.name;
+        });
+    }
+});
+
+// =============================================
+// APPROVAL MODAL
+// =============================================
+let currentApprovalId = null;
+
+function openApprovalModal(reqId) {
+    const req = allRequests.find(r => r.id === reqId);
+    if (!req) return;
+
+    currentApprovalId = reqId;
+
+    const infoHtml = `
+        <div style="display: grid; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Full Name</span>
+                <span style="color: var(--text-primary); font-weight: 700;">${escapeHtml(req.first_name)} ${escapeHtml(req.last_name)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Email</span>
+                <span style="color: var(--text-primary); font-weight: 600; word-break: break-all; text-align: right; max-width: 60%;">${escapeHtml(req.email || '—')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Phone</span>
+                <span style="color: var(--text-primary); font-weight: 600;">${escapeHtml(req.phone || '—')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Date of Birth</span>
+                <span style="color: var(--text-primary); font-weight: 600;">${escapeHtml(req.date_of_birth || '—')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Address</span>
+                <span style="color: var(--text-primary); font-weight: 600; word-break: break-word; text-align: right; max-width: 60%;">${escapeHtml(req.address || '—')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px dashed var(--border);">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Emergency Contact</span>
+                <span style="color: var(--text-primary); font-weight: 600; text-align: right; max-width: 60%;">
+                    ${escapeHtml(req.emergency_contact_name || '—')}<br>
+                    <small style="color: var(--text-muted);">${escapeHtml(req.emergency_contact_phone || '')}</small>
+                </span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">Submitted</span>
+                <span style="color: var(--text-primary); font-weight: 600;">${new Date(req.created_at).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'})}</span>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('approvalApplicantInfo').innerHTML = infoHtml;
+    document.getElementById('approvalModal').style.display = 'flex';
+}
+
+function closeApprovalModal() {
+    document.getElementById('approvalModal').style.display = 'none';
+    currentApprovalId = null;
+}
+
+async function confirmApproval() {
+    if (!currentApprovalId) return;
+
+    const req = allRequests.find(r => r.id === currentApprovalId);
+    if (!req) return;
+
+    const confirmed = confirm(
+        `✅ Approve ${req.first_name} ${req.last_name}?\n\n` +
+        `This will:\n` +
+        `• Create an employee account\n` +
+        `• Assign EMP### code\n` +
+        `• Send welcome email + QR code link\n\n` +
+        `Continue?`
+    );
+
+    if (!confirmed) return;
+
+    const btn = document.getElementById('approveBtnModal');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
+
+    try {
+        const res = await fetch(`/api/worker-requests/${currentApprovalId}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = orig;
+
+        if (result.success) {
+            alert(
+                `✅ Account Created!\n\n` +
+                `Employee Code: ${result.employee_code}\n` +
+                `Username: ${result.username}\n` +
+                `Password: (yung pinili ng employee)\n\n` +
+                `📧 Welcome email sent to applicant.`
+            );
+            closeApprovalModal();
+            loadPendingRequests();
+            loadEmployees();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+async function rejectFromModal() {
+    if (!currentApprovalId) return;
+    closeApprovalModal();
+    rejectRequest(currentApprovalId);
+}
+
+// Close on outside click
+document.addEventListener('click', e => {
+    const modal = document.getElementById('approvalModal');
+    if (e.target === modal) closeApprovalModal();
+});
+
+// =============================================
+// INITIALIZE
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+    loadEmployees();
+    loadPendingRequests();
+});
+</script>
+
+{% endblock %}

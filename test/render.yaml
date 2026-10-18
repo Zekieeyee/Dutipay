@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: dutipay
+    runtime: python
+    plan: free               # kept awake by an UptimeRobot ping (see README)
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --workers 1 --threads 8 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MAIL_ENABLED
+        value: "true"
+      - key: MAIL_PROVIDER
+        value: brevo
+      - key: BREVO_SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: BREVO_SMTP_PORT
+        value: "587"
+      - key: BREVO_SMTP_USER
+        sync: false
+      - key: BREVO_SMTP_KEY
+        sync: false
+      - key: MAIL_FROM_EMAIL
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: Dutipay
+      - key: DEV_CLEAR_TOKEN
+        sync: false
+      - key: RESET_RATE_LIMIT_SHORT
+        value: "3"
+      - key: RESET_RATE_LIMIT_LONG
+        value: "5"

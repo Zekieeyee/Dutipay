@@ -1,0 +1,601 @@
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Reports</h1>
+    <p class="subtitle">Attendance and payroll summary</p>
+</div>
+
+<div class="cutoff-indicator" id="cutoffIndicator" style="display:none;">
+    <i class="fas fa-calendar-alt"></i>
+    <span>Current Cutoff: <strong id="cutoffLabel">—</strong></span>
+</div>
+
+<!-- ✅ DATE RANGE FILTER -->
+<div class="card">
+    <div class="card-header">
+        <h3>🔍 Filter by Date Range</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>From Date:</label>
+                <input type="date" id="reportDateFrom">
+            </div>
+            <div class="form-group">
+                <label>To Date:</label>
+                <input type="date" id="reportDateTo">
+            </div>
+            <div class="form-group" style="display: flex; gap: 8px; align-items: flex-end;">
+                <button class="btn btn-primary" onclick="loadReports()">
+                    <i class="fas fa-search"></i> Apply
+                </button>
+                <button class="btn btn-secondary" onclick="resetReportRange()">
+                    <i class="fas fa-undo"></i> This Month
+                </button>
+            </div>
+        </div>
+<div class="quick-range-grid">
+    <button class="quick-range-btn" data-range="today" onclick="setQuickReportRange('today')">
+        <i class="fas fa-calendar-day"></i>
+        <span>Today</span>
+    </button>
+    <button class="quick-range-btn" data-range="week" onclick="setQuickReportRange('week')">
+        <i class="fas fa-calendar-week"></i>
+        <span>This Week</span>
+    </button>
+    <button class="quick-range-btn" data-range="month" onclick="setQuickReportRange('month')">
+        <i class="fas fa-calendar-alt"></i>
+        <span>This Month</span>
+    </button>
+    <button class="quick-range-btn" data-range="last30" onclick="setQuickReportRange('last30')">
+        <i class="fas fa-calendar-check"></i>
+        <span>Last 30 Days</span>
+    </button>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <h4>Total Employees</h4>
+            <p class="stat-number" id="totalEmployees">-</p>
+        </div>
+    </div>
+    <div class="stat-card olive">
+        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+        <div class="stat-info">
+            <h4>Present Today</h4>
+            <p class="stat-number" id="presentToday">-</p>
+        </div>
+    </div>
+    <div class="stat-card gold">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h4>Late Today</h4>
+            <p class="stat-number" id="lateToday">-</p>
+        </div>
+    </div>
+    <div class="stat-card terra">
+        <div class="stat-icon"><i class="fas fa-user-times"></i></div>
+        <div class="stat-info">
+            <h4>Absent Today</h4>
+            <p class="stat-number" id="absentToday">-</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>📊 Summary</h3>
+        <span class="badge badge-info" id="rangeLabel">-</span>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <tbody>
+                <tr>
+                    <td>Attendance Rate</td>
+                    <td id="rangeAttendanceRate" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+                <tr>
+                    <td>Late Incidents</td>
+                    <td id="rangeLateIncidents" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+                <tr>
+                    <td>Absences</td>
+                    <td id="rangeAbsences" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+                <tr>
+                    <td>Payroll Received</td>
+                    <td id="rangePayrollPaid" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+                <tr>
+                    <td>Payroll Pending</td>
+                    <td id="rangePayrollPending" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+                <tr>
+                    <td>Pending Job Applications</td>
+                    <td id="pendingApplications" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+                <tr>
+                    <td>Open Job Postings</td>
+                    <td id="openJobPostings" style="text-align:right; font-weight:700;">-</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ✅ STATISTICS GRAPHS -->
+<div class="charts-grid">
+    <div class="card">
+        <div class="card-header">
+            <h3>🥯 Today's Attendance</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="todayDoughnutChart" height="220"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>💰 Payroll (Selected Range)</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="payrollBarChart" height="220"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>📈 Attendance Trend (Selected Range)</h3>
+    </div>
+    <div class="card-body">
+        <canvas id="attendanceTrendChart" height="100"></canvas>
+    </div>
+</div>
+
+<style>
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-outline:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.btn-secondary:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+let todayChart, payrollChart, trendChart;
+
+function getThemeColor(varName, fallback) {
+    const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return val || fallback;
+}
+
+function setDateValue(inputId, date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    document.getElementById(inputId).value = `${year}-${month}-${day}`;
+}
+
+function setQuickReportRange(range) {
+    const today = new Date();
+    let fromDate, toDate;
+
+    switch (range) {
+        case 'today':
+            fromDate = toDate = today;
+            break;
+        case 'week':
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            fromDate = monday;
+            toDate = sunday;
+            break;
+        case 'month':
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            toDate = today;
+            break;
+        case 'last30':
+            toDate = today;
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - 29);
+            break;
+        default:
+            return;
+    }
+
+    setDateValue('reportDateFrom', fromDate);
+    setDateValue('reportDateTo', toDate);
+
+    // Highlight active button
+    document.querySelectorAll('.quick-range-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === range);
+    });
+
+    loadReports();  // Single call
+}
+function resetReportRange() {
+    setQuickReportRange('month');
+}
+
+async function loadReports() {
+    try {
+        const dateFrom = document.getElementById('reportDateFrom').value;
+        const dateTo = document.getElementById('reportDateTo').value;
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+
+        const res = await fetch(`/api/reports/summary?${params.toString()}`);
+        const data = await res.json();
+
+        if (data.success) {
+            document.getElementById('totalEmployees').textContent = data.data.total_employees;
+            document.getElementById('presentToday').textContent = data.data.present_today;
+            document.getElementById('lateToday').textContent = data.data.late_today;
+            document.getElementById('absentToday').textContent = data.data.absent_today;
+
+            document.getElementById('rangeLabel').textContent = `${data.data.range_start} → ${data.data.range_end}`;
+            document.getElementById('rangeAttendanceRate').textContent = data.data.range_attendance_rate + '%';
+            document.getElementById('rangeLateIncidents').textContent = data.data.range_late_incidents;
+            document.getElementById('rangeAbsences').textContent = data.data.range_absences;
+            document.getElementById('rangePayrollPaid').textContent = '₱' + data.data.range_payroll_paid.toLocaleString('en-PH', {minimumFractionDigits: 2});
+            document.getElementById('rangePayrollPending').textContent = '₱' + data.data.range_payroll_pending.toLocaleString('en-PH', {minimumFractionDigits: 2});
+            document.getElementById('pendingApplications').textContent = data.data.pending_applications;
+            document.getElementById('openJobPostings').textContent = data.data.open_job_postings;
+
+            renderTodayChart(data.data);
+            renderPayrollChart(data.data);
+        }
+
+        await loadAttendanceTrend(dateFrom, dateTo);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderTodayChart(d) {
+    const ctx = document.getElementById('todayDoughnutChart');
+    const presentColor = getThemeColor('--accent-green', '#6b8e23');
+    const lateColor = getThemeColor('--accent-yellow', '#d4a017');
+    const absentColor = getThemeColor('--accent-red', '#c45c4a');
+    const absent = Math.max(0, d.absent_today - d.late_today);
+
+    const dataValues = [d.present_today, d.late_today, absent];
+    const labels = ['Present', 'Late', 'Absent'];
+    const colors = [presentColor, lateColor, absentColor];
+    const total = dataValues.reduce((a, b) => a + b, 0);
+
+    // If all zero, show placeholder
+    if (total === 0) {
+        if (todayChart) todayChart.destroy();
+        todayChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['No data'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#e0e0e0'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            },
+            plugins: [{
+                id: 'noData',
+                afterDraw: function(chart) {
+                    const { ctx, chartArea } = chart;
+                    ctx.save();
+                    ctx.fillStyle = getThemeColor('--text-muted', '#8a9a8a');
+                    ctx.font = 'bold 16px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const x = (chartArea.left + chartArea.right) / 2;
+                    const y = (chartArea.top + chartArea.bottom) / 2;
+                    ctx.fillText('No data for today', x, y);
+                    ctx.restore();
+                }
+            }]
+        });
+        return;
+    }
+
+    if (todayChart) todayChart.destroy();
+    todayChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: dataValues,
+                backgroundColor: colors,
+                borderWidth: 3,
+                borderColor: getThemeColor('--bg-card', '#1e2e1e')
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '55%',
+            plugins: {
+                legend: { 
+                    position: 'bottom',
+                    labels: {
+                        color: getThemeColor('--text-secondary', '#5a6b5a'),
+                        padding: 16,
+                        font: { size: 13, weight: '600' },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        boxWidth: 10,
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            return data.labels.map((label, i) => {
+                                const value = data.datasets[0].data[i];
+                                const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return {
+                                    text: `${label}: ${value} (${pct}%)`,
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    strokeStyle: data.datasets[0].backgroundColor[i],
+                                    fontColor: getThemeColor('--text-secondary', '#5a6b5a'),
+                                    hidden: false,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
+                },
+                tooltip: { enabled: false }
+            }
+        },
+        plugins: [{
+            id: 'alwaysShowLabels',
+            afterDatasetsDraw: function(chart) {
+                const { ctx } = chart;
+                const meta = chart.getDatasetMeta(0);
+                
+                ctx.save();
+                meta.data.forEach((element, index) => {
+                    const value = chart.data.datasets[0].data[index];
+                    if (value === 0) return;
+                    
+                    const { x, y } = element.tooltipPosition();
+                    const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                    
+                    // Value (big)
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 20px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(value, x, y - 6);
+                    
+                    // Percentage (small)
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    ctx.shadowBlur = 2;
+                    ctx.fillText(pct + '%', x, y + 14);
+                });
+                ctx.restore();
+            }
+        }]
+    });
+}
+
+function renderPayrollChart(d) {
+    const ctx = document.getElementById('payrollBarChart');
+    const paidColor = getThemeColor('--accent-green', '#6b8e23');
+    const pendingColor = getThemeColor('--accent-yellow', '#d4a017');
+
+    const paidVal = parseFloat(d.range_payroll_paid) || 0;
+    const pendingVal = parseFloat(d.range_payroll_pending) || 0;
+    const totalVal = paidVal + pendingVal;
+
+    // If both zero
+    if (totalVal === 0) {
+        if (payrollChart) payrollChart.destroy();
+        payrollChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['No data'],
+                datasets: [{
+                    data: [0],
+                    backgroundColor: ['#e0e0e0'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: getThemeColor('--text-secondary', '#5a6b5a') } },
+                    y: { beginAtZero: true, ticks: { color: getThemeColor('--text-secondary', '#5a6b5a') } }
+                }
+            },
+            plugins: [{
+                id: 'noData',
+                afterDraw: function(chart) {
+                    const { ctx, chartArea } = chart;
+                    ctx.save();
+                    ctx.fillStyle = getThemeColor('--text-muted', '#8a9a8a');
+                    ctx.font = 'bold 16px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const x = (chartArea.left + chartArea.right) / 2;
+                    const y = (chartArea.top + chartArea.bottom) / 2;
+                    ctx.fillText('No payroll data', x, y);
+                    ctx.restore();
+                }
+            }]
+        });
+        return;
+    }
+
+    if (payrollChart) payrollChart.destroy();
+    payrollChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Received', 'Pending'],
+            datasets: [{
+                label: 'Amount (₱)',
+                data: [paidVal, pendingVal],
+                backgroundColor: [paidColor, pendingColor],
+                borderRadius: 12,
+                barThickness: 80
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: { 
+                    ticks: { 
+                        color: getThemeColor('--text-secondary', '#5a6b5a'),
+                        font: { size: 14, weight: '600' }
+                    }, 
+                    grid: { display: false } 
+                },
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { 
+                        color: getThemeColor('--text-secondary', '#5a6b5a'),
+                        font: { size: 12 },
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }, 
+                    grid: { color: 'rgba(128,128,128,0.15)' } 
+                }
+            }
+        },
+        plugins: [{
+            id: 'barLabels',
+            afterDatasetsDraw: function(chart) {
+                const { ctx } = chart;
+                const meta = chart.getDatasetMeta(0);
+                
+                ctx.save();
+                meta.data.forEach((bar, index) => {
+                    const value = chart.data.datasets[0].data[index];
+                    const text = '₱' + parseFloat(value).toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    
+                    ctx.fillStyle = getThemeColor('--text-primary', '#e8f0e0');
+                    ctx.font = 'bold 14px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 3;
+                    
+                    ctx.fillText(text, bar.x, bar.y - 8);
+                });
+                ctx.restore();
+            }
+        }]
+    });
+}
+async function loadAttendanceTrend(dateFrom, dateTo) {
+    try {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+
+        const res = await fetch(`/api/reports/attendance-trend?${params.toString()}`);
+        const data = await res.json();
+        if (!data.success) return;
+
+        const ctx = document.getElementById('attendanceTrendChart');
+        const presentColor = getThemeColor('--accent-green', '#6b8e23');
+        const lateColor = getThemeColor('--accent-yellow', '#d4a017');
+
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.data.labels,
+                datasets: [
+                    { label: 'Present', data: data.data.present, borderColor: presentColor, backgroundColor: presentColor + '33', tension: 0.3, fill: true },
+                    { label: 'Late', data: data.data.late, borderColor: lateColor, backgroundColor: lateColor + '33', tension: 0.3, fill: true }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { ticks: { color: getThemeColor('--text-secondary', '#5a6b5a') }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: getThemeColor('--text-secondary', '#5a6b5a') }, grid: { color: 'rgba(128,128,128,0.15)' } }
+                },
+                plugins: { legend: { position: 'bottom', labels: { color: getThemeColor('--text-secondary', '#5a6b5a') } } }
+            }
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await fetch('/api/cutoff/current');
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('reportDateFrom').value = data.data.start;
+            document.getElementById('reportDateTo').value = data.data.end;
+        } else {
+            const today = new Date();
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            setDateValue('reportDateFrom', monthStart);
+            setDateValue('reportDateTo', today);
+        }
+    } catch (e) {
+        const today = new Date();
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        setDateValue('reportDateFrom', monthStart);
+        setDateValue('reportDateTo', today);
+    }
+    loadReports();
+});
+</script>
+{% endblock %}

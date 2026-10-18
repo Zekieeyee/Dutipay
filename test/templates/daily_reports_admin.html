@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Daily Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Employee</h1>
+    <p class="subtitle">Review and provide feedback on your team's daily work reports</p>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid" style="margin-bottom: 20px;">
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+        <div class="stat-info">
+            <h4>Total Reports</h4>
+            <p class="stat-number" id="statTotal">0</p>
+        </div>
+    </div>
+    <div class="stat-card gold">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h4>Pending Review</h4>
+            <p class="stat-number" id="statPending">0</p>
+        </div>
+    </div>
+    <div class="stat-card olive">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h4>Reviewed</h4>
+            <p class="stat-number" id="statReviewed">0</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Card -->
+<div class="card">
+    <div class="card-header">
+        <h3>🔍 Filter</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>From Date</label>
+                <input type="date" id="filterDateFrom">
+            </div>
+            <div class="form-group">
+                <label>To Date</label>
+                <input type="date" id="filterDateTo">
+            </div>
+            <div class="form-group">
+                <label>Employee</label>
+                <select id="filterEmployee">
+                    <option value="">All Employees</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="filterReviewed">
+                    <option value="">All</option>
+                    <option value="false">Pending Review</option>
+                    <option value="true">Reviewed</option>
+                </select>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+            <button class="btn btn-primary" onclick="loadReports()">
+                <i class="fas fa-search"></i> Apply Filters
+            </button>
+            <button class="btn btn-secondary" onclick="resetFilter()">
+                <i class="fas fa-undo"></i> Reset
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="setQuickRange('today')">Today</button>
+            <button class="btn btn-sm btn-outline" onclick="setQuickRange('week')">This Week</button>
+            <button class="btn btn-sm btn-outline" onclick="setQuickRange('month')">This Month</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reports List -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Reports</h3>
+        <span class="badge badge-info" id="reportCount">0 reports</span>
+    </div>
+    <div class="card-body">
+        <div id="reportsContainer">
+            <p style="text-align:center;color:var(--text-muted);">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Review Modal -->
+<div id="reviewModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 640px;">
+        <div class="modal-header">
+            <h3>💬 Review Report</h3>
+            <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+        </div>
+        <div style="padding: 24px;">
+            <div id="reviewReportContent" style="margin-bottom: 20px;">
+                <!-- Filled by JS -->
+            </div>
+
+            <div class="form-group">
+                <label>💬 Feedback to Employee</label>
+                <textarea id="reviewFeedback" rows="3"
+                          placeholder"Comment or feedback on the employee's report..."
+                          style="padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; background: var(--bg-card); color: var(--text-primary); width: 100%;"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeReviewModal()" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="reviewSubmitBtn" onclick="submitReview()">
+                    <i class="fas fa-check"></i> Mark as Reviewed
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.report-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+    transition: all 0.3s;
+}
+.report-card:hover {
+    border-color: var(--primary-light);
+    box-shadow: var(--shadow);
+}
+.report-card.reviewed {
+    background: linear-gradient(90deg, rgba(107,142,35,0.04), transparent);
+    border-left: 3px solid var(--accent-green);
+}
+.report-card.pending {
+    border-left: 3px solid var(--accent-yellow);
+}
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.report-employee {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.employee-avatar-circle {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.employee-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+.employee-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.report-section {
+    margin-bottom: 12px;
+}
+.report-section:last-child { margin-bottom: 0; }
+.report-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.report-content {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.report-feedback {
+    background: rgba(74,124,89,0.08);
+    border-left: 3px solid var(--primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 14px;
+    font-size: 13px;
+}
+.report-feedback .label {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.report-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+.empty-state i {
+    font-size: 56px;
+    opacity: 0.3;
+    margin-bottom: 16px;
+    display: block;
+    color: var(--primary);
+}
+.reviewed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.reviewed-badge.yes { background: rgba(107,142,35,0.15); color: var(--accent-green); }
+.reviewed-badge.no { background: rgba(233,196,106,0.2); color: #b8860b; }
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-outline:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.btn-secondary:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+</style>
+
+<script>
+let currentReports = [];
+let employees = [];
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    setDateValue('filterDateFrom', monthStart);
+    setDateValue('filterDateTo', today);
+
+    loadEmployees();
+    loadReports();
+});
+
+function toISO(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function setDateValue(id, d) {
+    const el = document.getElementById(id);
+    if (el) el.value = toISO(d);
+}
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+    } catch(e) { return iso; }
+}
+function getInitials(name) {
+    return String(name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+// =============================================
+// LOAD EMPLOYEES (for filter dropdown)
+// =============================================
+async function loadEmployees() {
+    try {
+        const res = await fetch('/api/employees');
+        const data = await res.json();
+        if (!data.success) return;
+
+        employees = data.data || [];
+        const sel = document.getElementById('filterEmployee');
+        employees.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.textContent = `${e.first_name} ${e.last_name} (${e.employee_code})`;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Load employees error:', e);
+    }
+}
+
+// =============================================
+// LOAD REPORTS
+// =============================================
+async function loadReports() {
+    const container = document.getElementById('reportsContainer');
+    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Loading...</p>';
+
+    try {
+        const params = new URLSearchParams();
+        const from = document.getElementById('filterDateFrom').value;
+        const to = document.getElementById('filterDateTo').value;
+        const emp = document.getElementById('filterEmployee').value;
+        const rev = document.getElementById('filterReviewed').value;
+
+        if (from) params.append('date_from', from);
+        if (to) params.append('date_to', to);
+        if (emp) params.append('employee_id', emp);
+        if (rev) params.append('reviewed', rev);
+
+        const res = await fetch(`/api/daily-reports?${params.toString()}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            container.innerHTML = `<p style="text-align:center;color:var(--accent-red);">Error: ${escapeHtml(data.message)}</p>`;
+            return;
+        }
+
+        currentReports = data.data || [];
+        document.getElementById('reportCount').textContent = `${currentReports.length} report(s)`;
+
+        // Stats
+        document.getElementById('statTotal').textContent = currentReports.length;
+        const pendingCount = currentReports.filter(r => !r.reviewed_at).length;
+        const reviewedCount = currentReports.filter(r => r.reviewed_at).length;
+        document.getElementById('statPending').textContent = pendingCount;
+        document.getElementById('statReviewed').textContent = reviewedCount;
+
+        if (!currentReports.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No reports found for the current filter.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = currentReports.map(r => renderReportCard(r)).join('');
+    } catch (e) {
+        container.innerHTML = `<p style="text-align:center;color:var(--accent-red);">Error: ${escapeHtml(e.message)}</p>`;
+    }
+}
+
+function renderReportCard(r) {
+    const reviewed = !!r.reviewed_at;
+    const reviewedBadge = reviewed
+        ? `<span class="reviewed-badge yes"><i class="fas fa-check-circle"></i> Reviewed</span>`
+        : `<span class="reviewed-badge no"><i class="fas fa-clock"></i> Pending</span>`;
+
+    const attachment = r.attachment_filename
+        ? `<div class="report-section">
+             <div class="report-label"><i class="fas fa-paperclip"></i> Attachment</div>
+             <button class="btn btn-sm btn-info" onclick="viewAttachment(${r.id})">
+                <i class="fas fa-download"></i> ${escapeHtml(r.attachment_filename)}
+             </button>
+           </div>`
+        : '';
+
+    const feedbackBlock = reviewed
+        ? `<div class="report-feedback">
+             <div class="label"><i class="fas fa-comment-dots"></i> Your feedback</div>
+             <div>${escapeHtml(r.feedback || 'No comment.')}</div>
+             <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                Reviewed on ${new Date(r.reviewed_at).toLocaleString()}
+             </div>
+           </div>`
+        : '';
+
+    const reviewBtn = reviewed
+        ? `<button class="btn btn-sm btn-warning" onclick='openReviewModal(${r.id})'>
+             <i class="fas fa-edit"></i> Update Feedback
+           </button>`
+        : `<button class="btn btn-sm btn-success" onclick='openReviewModal(${r.id})'>
+             <i class="fas fa-check"></i> Mark as Reviewed
+           </button>`;
+
+    return `
+        <div class="report-card ${reviewed ? 'reviewed' : 'pending'}">
+            <div class="report-header">
+                <div class="report-employee">
+                    <div class="employee-avatar-circle">${getInitials(r.employee_name)}</div>
+                    <div>
+                        <div class="employee-name">${escapeHtml(r.employee_name)}</div>
+                        <div class="employee-meta">${escapeHtml(r.employee_code || '')} · ${escapeHtml(r.position || '')} · ${escapeHtml(fmtDate(r.report_date))}</div>
+                    </div>
+                </div>
+                ${reviewedBadge}
+            </div>
+
+            <div class="report-section">
+                <div class="report-label"><i class="fas fa-check-circle" style="color: var(--accent-green);"></i> Tasks Completed</div>
+                <div class="report-content">${escapeHtml(r.tasks_completed || '—')}</div>
+            </div>
+
+            ${r.tasks_in_progress ? `
+            <div class="report-section">
+                <div class="report-label"><i class="fas fa-hourglass-half" style="color: #b8860b;"></i> Tasks In Progress</div>
+                <div class="report-content">${escapeHtml(r.tasks_in_progress)}</div>
+            </div>` : ''}
+
+            ${r.issues_blockers ? `
+            <div class="report-section">
+                <div class="report-label"><i class="fas fa-exclamation-triangle" style="color: var(--accent-red);"></i> Issues / Blockers</div>
+                <div class="report-content">${escapeHtml(r.issues_blockers)}</div>
+            </div>` : ''}
+
+            ${r.next_steps ? `
+            <div class="report-section">
+                <div class="report-label"><i class="fas fa-arrow-right" style="color: var(--primary);"></i> Next Steps</div>
+                <div class="report-content">${escapeHtml(r.next_steps)}</div>
+            </div>` : ''}
+
+            ${r.hours_worked ? `
+            <div class="report-section">
+                <div class="report-label"><i class="fas fa-clock"></i> Hours Worked</div>
+                <div class="report-content"><strong>${r.hours_worked} hours</strong></div>
+            </div>` : ''}
+
+            ${attachment}
+            ${feedbackBlock}
+
+            <div class="report-actions">
+                ${reviewBtn}
+            </div>
+        </div>
+    `;
+}
+
+// =============================================
+// REVIEW MODAL
+// =============================================
+let reviewingId = null;
+
+function openReviewModal(id) {
+    const r = currentReports.find(x => x.id === id);
+    if (!r) return;
+    reviewingId = id;
+
+    document.getElementById('reviewFeedback').value = r.feedback || '';
+
+    // Show summary
+    const summary = `
+        <div style="background: var(--bg-secondary); padding: 16px; border-radius: 10px; font-size: 13px; line-height: 1.7;">
+            <div style="margin-bottom: 6px;"><strong>Employee:</strong> ${escapeHtml(r.employee_name)} (${escapeHtml(r.employee_code || '')})</div>
+            <div style="margin-bottom: 6px;"><strong>Date:</strong> ${escapeHtml(fmtDate(r.report_date))}</div>
+            <div style="margin-bottom: 6px;"><strong>Position:</strong> ${escapeHtml(r.position || '—')}</div>
+            <div style="margin-bottom: 6px;"><strong>Hours Worked:</strong> ${r.hours_worked || 0}</div>
+        </div>
+    `;
+    document.getElementById('reviewReportContent').innerHTML = summary;
+
+    const btn = document.getElementById('reviewSubmitBtn');
+    btn.innerHTML = r.reviewed_at
+        ? '<i class="fas fa-save"></i> Update Feedback'
+        : '<i class="fas fa-check"></i> Mark as Reviewed';
+
+    document.getElementById('reviewModal').style.display = 'flex';
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').style.display = 'none';
+    reviewingId = null;
+}
+
+async function submitReview() {
+    if (!reviewingId) return;
+    const feedback = document.getElementById('reviewFeedback').value.trim();
+
+    if (!confirm('Mark this report as reviewed?')) return;
+
+    try {
+        const btn = document.getElementById('reviewSubmitBtn');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        const res = await fetch(`/api/daily-reports/${reviewingId}/review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ feedback: feedback })
+        });
+        const result = await res.json();
+
+        btn.disabled = false;
+        btn.innerHTML = original;
+
+        if (result.success) {
+            alert('✅ ' + result.message);
+            closeReviewModal();
+            loadReports();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// VIEW ATTACHMENT
+// =============================================
+async function viewAttachment(id) {
+    try {
+        const res = await fetch(`/api/daily-reports/${id}/attachment`);
+        const data = await res.json();
+        if (data.success && data.data && data.data.url) {
+            window.open(data.data.url, '_blank');
+        } else {
+            alert('❌ ' + (data.message || 'No attachment'));
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+// =============================================
+// FILTERS
+// =============================================
+function setQuickRange(range) {
+    const today = new Date();
+    let fromDate, toDate;
+    switch (range) {
+        case 'today':
+            fromDate = toDate = today;
+            break;
+        case 'week':
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            fromDate = monday;
+            toDate = sunday;
+            break;
+        case 'month':
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            toDate = today;
+            break;
+        default: return;
+    }
+    setDateValue('filterDateFrom', fromDate);
+    setDateValue('filterDateTo', toDate);
+    loadReports();
+}
+
+function resetFilter() {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    setDateValue('filterDateFrom', monthStart);
+    setDateValue('filterDateTo', today);
+    document.getElementById('filterEmployee').value = '';
+    document.getElementById('filterReviewed').value = '';
+    loadReports();
+}
+</script>
+{% endblock %}

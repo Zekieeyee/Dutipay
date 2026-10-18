@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Admin Dashboard</h1>
+    <p class="subtitle">Welcome back, {{ full_name }}!</p>
+</div>
+
+<!-- STATS CARDS -->
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <h4>Total Employees</h4>
+            <p class="stat-number">{{ total_employees|default(0) }}</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Active only</small>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+        <div class="stat-info">
+            <h4>Present Today</h4>
+            <p class="stat-number">{{ present_today|default(0) }}</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Unique check-ins</small>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h4>Late Today</h4>
+            <p class="stat-number">{{ late_today|default(0) }}</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Late arrivals</small>
+        </div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-icon"><i class="fas fa-money-bill"></i></div>
+        <div class="stat-info">
+            <h4>Payroll Pending</h4>
+            <p class="stat-number">{{ pending_payroll|default(0) }}</p>
+            <small style="color: var(--text-muted); font-size: 11px;">Not yet received</small>
+        </div>
+    </div>
+</div>
+
+<div class="cutoff-indicator" id="cutoffIndicator" style="display:none;">
+    <i class="fas fa-calendar-alt"></i>
+    <span>Current Cutoff: <strong id="cutoffLabel">—</strong></span>
+</div>
+
+<style>
+.cutoff-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, rgba(74,124,89,0.1), rgba(107,142,35,0.05));
+    border: 1px solid rgba(74,124,89,0.2);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.cutoff-indicator i { color: var(--primary); font-size: 16px; }
+.cutoff-indicator strong { color: var(--text-primary); }
+</style>
+
+<!-- QUICK ACTIONS -->
+<div class="card">
+    <div class="card-header">
+        <h3>⚡ Quick Actions</h3>
+    </div>
+    <div class="card-body">
+        <div class="quick-actions">
+            <a href="/employees" class="quick-action">
+                <i class="fas fa-user-plus"></i>
+                <span>Add Employee</span>
+            </a>
+            <a href="/payroll" class="quick-action">
+                <i class="fas fa-calculator"></i>
+                <span>Generate Payroll</span>
+            </a>
+            <a href="/attendance" class="quick-action">
+                <i class="fas fa-clipboard-check"></i>
+                <span>View Attendance</span>
+            </a>
+            <a href="/reports" class="quick-action">
+                <i class="fas fa-file-export"></i>
+                <span>Generate Reports</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- RECENT ATTENDANCE -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Recent Attendance</h3>
+        <a href="/attendance" class="btn btn-sm btn-info">
+            <i class="fas fa-eye"></i> View All
+        </a>
+    </div>
+    <div class="card-body">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Date</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="recentAttendanceBody">
+                <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">
+                        Loading...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// =============================================
+// ✅ SECURITY: escapeHtml
+// =============================================
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+
+// =============================================
+// ✅ FIX: Get "today" in Asia/Manila, not UTC
+// =============================================
+function getTodayManila() {
+    const now = new Date();
+    // Convert to Asia/Manila (UTC+8)
+    const manila = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const year = manila.getFullYear();
+    const month = String(manila.getMonth() + 1).padStart(2, '0');
+    const day = String(manila.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// =============================================
+// ✅ FIX: Format time safely (handles string | Date)
+// =============================================
+function formatTime(value) {
+    if (!value) return '—';
+    try {
+        const d = new Date(value);
+        if (isNaN(d)) return '—';
+        return d.toLocaleTimeString('en-PH', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Manila'
+        });
+    } catch (e) {
+        return '—';
+    }
+}
+
+// =============================================
+// ✅ FIX: Format date safely
+// =============================================
+function formatDate(value) {
+    if (!value) return '—';
+    try {
+        // Handle both 'YYYY-MM-DD' strings and Date objects
+        const str = String(value);
+        const d = new Date(str.length <= 10 ? str + 'T00:00:00' : str);
+        if (isNaN(d)) return '—';
+        return d.toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric'
+        });
+    } catch (e) {
+        return '—';
+    }
+}
+
+// =============================================
+// LOAD RECENT ATTENDANCE
+// =============================================
+async function loadRecentAttendance() {
+    const tbody = document.getElementById('recentAttendanceBody');
+    if (!tbody) return;
+
+    try {
+        // ✅ FIX: Use Manila date, not UTC
+        const today = getTodayManila();
+
+        const res = await fetch(`/api/attendance/all?date_from=${today}&date_to=${today}`);
+        const data = await res.json();
+
+        if (!data.success || !data.data || !data.data.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">
+                        <i class="fas fa-calendar-times" style="font-size:32px;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                        No attendance records today
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Show latest 5 records
+        const recent = data.data.slice(0, 5);
+        tbody.innerHTML = recent.map(r => {
+            const statusClass = r.status === 'Late' ? 'warning' : 'success';
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(r.employee_name) || 'Unknown'}</strong></td>
+                    <td>${escapeHtml(formatDate(r.attendance_date))}</td>
+                    <td>${escapeHtml(formatTime(r.time_in))}</td>
+                    <td>${escapeHtml(formatTime(r.time_out))}</td>
+                    <td><span class="badge badge-${statusClass}">${escapeHtml(r.status) || 'Present'}</span></td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Load recent attendance error:', e);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center;color:var(--accent-red);padding:20px;">
+                    Error loading attendance
+                </td>
+            </tr>
+        `;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadRecentAttendance);
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(loadRecentAttendance, 500);
+});
+</script>
+{% endblock %}

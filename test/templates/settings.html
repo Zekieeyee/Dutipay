@@ -1,0 +1,1855 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="settings-page" data-role="{{ role }}">
+
+    <!-- ==================== PAGE HEADER ==================== -->
+    <div class="page-header">
+        <div>
+            <h1>⚙️ Settings</h1>
+            <p class="subtitle">
+                {% if role == 'admin' %}
+                    Manage your company's system configuration
+                {% elif role == 'manager' %}
+                    View company settings (read-only)
+                {% else %}
+                    View your company information and manage your account
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ==================== SETTINGS TABS ==================== -->
+    <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="farm" onclick="switchSettingsTab('farm')">
+            <i class="fas fa-building"></i> Company Info
+        </button>
+
+        {% if role in ['admin', 'manager'] %}
+        <button class="settings-tab" data-tab="schedule" onclick="switchSettingsTab('schedule')">
+            <i class="fas fa-clock"></i> Work Schedule
+        </button>
+        <button class="settings-tab" data-tab="attendance" onclick="switchSettingsTab('attendance')">
+            <i class="fas fa-clipboard-check"></i> Attendance
+        </button>
+        <button class="settings-tab" data-tab="payroll" onclick="switchSettingsTab('payroll')">
+            <i class="fas fa-money-bill-wave"></i> Payroll
+        </button>
+        <button class="settings-tab" data-tab="qr" onclick="switchSettingsTab('qr')">
+            <i class="fas fa-qrcode"></i> QR & Scanner
+        </button>
+        {% endif %}
+
+
+        <button class="settings-tab" data-tab="account" onclick="switchSettingsTab('account')">
+            <i class="fas fa-user-shield"></i> My Account
+        </button>
+    </div>
+
+    <!-- ==================== TAB: COMPANY INFO ==================== -->
+    <div class="settings-panel active {% if role != 'admin' %}view-only{% endif %}" id="panel-farm">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <div class="settings-icon green"><i class="fas fa-building"></i></div>
+                <div>
+                    <h3>Company Information</h3>
+                    <p>
+                        {% if role == 'admin' %}
+                            Basic details about your company or business
+                        {% else %}
+                            Company details (view only)
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="settings-card-body">
+
+                {% if role != 'admin' %}
+                <div class="view-only-banner">
+                    <i class="fas fa-eye"></i>
+                    <span><strong>View-only mode.</strong> Company information can only be edited by the <strong>administrator</strong>.</span>
+                </div>
+                {% endif %}
+
+                <!-- ✅ BUSINESS LOGO UPLOAD (admin only) -->
+                {% if role == 'admin' %}
+                <div class="form-group">
+                    <label>Business Logo</label>
+                    <div class="logo-upload-section">
+                        <div class="logo-preview">
+                            {% if farm_logo_url %}
+                                <img src="{{ farm_logo_url }}" alt="Business Logo" id="logoImg">
+                            {% else %}
+                                <div class="logo-placeholder" id="logoPlaceholder">
+                                    <i class="fas fa-image"></i>
+                                    <span>No logo</span>
+                                </div>
+                                <img src="" alt="Business Logo" id="logoImg" style="display: none;">
+                            {% endif %}
+                        </div>
+                        <div class="logo-upload-controls">
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg,.webp">
+                                <label for="logoInput" class="file-upload-label">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span>Upload Logo</span>
+                                </label>
+                            </div>
+                            <small class="text-muted">PNG, JPG, SVG, WebP (Max 2MB). Recommended: 200×200px square.</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Company / Business Name</label>
+                        <input type="text" id="farmName" placeholder="e.g., ABC Company Inc."
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                    <div class="form-group">
+                        <label>Company Owner</label>
+                        <input type="text" id="farmOwner" placeholder="Owner / manager name"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contact Email</label>
+                        <input type="email" id="farmEmail" placeholder="company@email.com"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Phone</label>
+                        <input type="tel" id="farmPhone" placeholder="09123456789"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Company Address</label>
+                    <textarea id="farmAddress" rows="2" placeholder="Complete company address"
+                              {% if role != 'admin' %}disabled{% endif %}></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Currency</label>
+                        <select id="currency" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="PHP">PHP (₱) — Philippine Peso</option>
+                            <option value="USD">USD ($) — US Dollar</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Time Zone</label>
+                        <select id="timezone" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="Asia/Manila">Asia/Manila (PHT)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if role in ['admin', 'manager'] %}
+    <!-- ==================== TAB: WORK SCHEDULE ==================== -->
+    <div class="settings-panel {% if role != 'admin' %}view-only{% endif %}" id="panel-schedule">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <div class="settings-icon olive"><i class="fas fa-clock"></i></div>
+                <div>
+                    <h3>Default Work Schedule</h3>
+                    <p>Standard working hours applied to new employees</p>
+                </div>
+            </div>
+            <div class="settings-card-body">
+
+                {% if role == 'manager' %}
+                <div class="view-only-banner">
+                    <i class="fas fa-eye"></i>
+                    <span><strong>View-only mode.</strong> The work schedule can only be edited by the <strong>administrator</strong>. If something needs to be adjusted, please request it from the admin.</span>
+                </div>
+                {% endif %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Default Time-In</label>
+                        <input type="time" id="defaultTimeIn" value="08:00"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                    <div class="form-group">
+                        <label>Default Time-Out</label>
+                        <input type="time" id="defaultTimeOut" value="17:00"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Lunch Break (minutes)</label>
+                        <input type="number" id="lunchBreak" value="60" min="0" max="120"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                    <div class="form-group">
+                        <label>Working Days per Month</label>
+                        <input type="number" id="workingDays" value="22" min="1" max="31"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Rest Days</label>
+                        <select id="restDays" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="sat-sun">Saturday & Sunday</option>
+                            <option value="sun">Sunday only</option>
+                            <option value="none">No rest day</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Shift Type</label>
+                        <select id="shiftType" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="day">Day Shift</option>
+                            <option value="night">Night Shift</option>
+                            <option value="flexible">Flexible</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: ATTENDANCE ==================== -->
+    <div class="settings-panel {% if role != 'admin' %}view-only{% endif %}" id="panel-attendance">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <div class="settings-icon gold"><i class="fas fa-clipboard-check"></i></div>
+                <div>
+                    <h3>Attendance Rules</h3>
+                    <p>Configure how attendance is tracked and marked</p>
+                </div>
+            </div>
+            <div class="settings-card-body">
+
+                {% if role == 'manager' %}
+                <div class="view-only-banner">
+                    <i class="fas fa-eye"></i>
+                    <span><strong>View-only mode.</strong> The attendance policy can only be edited by the <strong>administrator</strong>.</span>
+                </div>
+                {% endif %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Grace Period (minutes)</label>
+                        <input type="number" id="gracePeriod" value="5" min="0" max="30"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">Late is not counted within this period</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Late Threshold (minutes)</label>
+                        <input type="number" id="lateThreshold" value="5" min="0"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">Minutes before marked as "Late"</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Auto Time-Out</label>
+                        <select id="autoTimeout" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="disabled">Disabled (manual scan only)</option>
+                            <option value="enabled">Enabled</option>
+                        </select>
+                        <small class="text-muted">Auto-close attendance at end of day</small>
+                    </div>
+                    <div class="form-group">
+                        <label>End-of-Day Time</label>
+                        <input type="time" id="endOfDay" value="23:59"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">When auto time-out triggers</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label {% if role != 'admin' %}disabled{% endif %}">
+                        <input type="checkbox" id="requirePhoto" checked
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Require photo on QR scan (for verification)</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label {% if role != 'admin' %}disabled{% endif %}">
+                        <input type="checkbox" id="blockDuplicate" checked
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Block duplicate time-in on same day</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label {% if role != 'admin' %}disabled{% endif %}">
+                        <input type="checkbox" id="allowManualEntry"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Allow manual attendance entry by admin</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: PAYROLL ==================== -->
+    <div class="settings-panel {% if role != 'admin' %}view-only{% endif %}" id="panel-payroll">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <div class="settings-icon terra"><i class="fas fa-money-bill-wave"></i></div>
+                <div>
+                    <h3>Payroll Preferences</h3>
+                    <p>Configure payroll computation rules</p>
+                </div>
+            </div>
+            <div class="settings-card-body">
+
+                {% if role == 'manager' %}
+                <div class="view-only-banner">
+                    <i class="fas fa-eye"></i>
+                    <span><strong>View-only mode.</strong> The payroll policy can only be adjusted by the <strong>administrator</strong>.</span>
+                </div>
+                {% endif %}
+
+                <!-- BASIC SETTINGS -->
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-cog" style="color: var(--primary);"></i> Basic Settings
+                </h4>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Pay Frequency</label>
+                        <select id="payFrequency" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="semi-monthly">Twice a Month (15th & 30th)</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Salary Basis</label>
+                        <select id="salaryBasis" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="monthly">Monthly Rate</option>
+                            <option value="daily">Daily Rate</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Working Days per Month</label>
+                        <input type="number" id="payrollWorkingDays" value="22" min="1" max="31"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">Used to compute daily rate from monthly salary</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Payroll Cutoff Day</label>
+                        <select id="cutoffDay" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="15-30">15th & 30th</option>
+                            <option value="5-20">5th & 20th</option>
+                            <option value="25">Every 25th</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- DEDUCTIONS -->
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 24px 0 16px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-minus-circle" style="color: var(--accent-red);"></i> Deductions
+                </h4>
+
+                <div class="form-group">
+                    <label class="checkbox-label {% if role != 'admin' %}disabled{% endif %}">
+                        <input type="checkbox" id="lateDeductionEnabled"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Enable Late Deduction</span>
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Late Deduction Rate (₱ per minute)</label>
+                        <input type="number" id="lateDeductionRate" value="0" min="0" step="0.01"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">e.g., 5.00 = ₱5 per minute late</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Absent Deduction (₱ per day)</label>
+                        <input type="number" id="absentDeductionRate" value="0" min="0" step="0.01"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">Auto-calculated from daily rate if 0</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Custom Deduction Label</label>
+                        <input type="text" id="customDeductionLabel" placeholder="e.g., Uniform, Cash Advance"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                    <div class="form-group">
+                        <label>Custom Deduction Amount (₱)</label>
+                        <input type="number" id="customDeductionAmount" value="0" min="0" step="0.01"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                    </div>
+                </div>
+
+                <!-- BONUS & ALLOWANCE -->
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 24px 0 16px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-plus-circle" style="color: var(--accent-green);"></i> Bonus & Allowance
+                </h4>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Bonus Amount (₱)</label>
+                        <input type="number" id="bonusAmount" value="0" min="0" step="0.01"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">Fixed bonus per cutoff</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Allowance Amount (₱)</label>
+                        <input type="number" id="allowanceAmount" value="0" min="0" step="0.01"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">e.g., meal, transportation allowance</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Overtime Rate (multiplier)</label>
+                    <input type="number" id="overtimeRate" value="1.25" min="1" step="0.05"
+                           {% if role != 'admin' %}disabled{% endif %}>
+                    <small class="text-muted">e.g., 1.25 = 125% of hourly rate</small>
+                </div>
+
+                <!-- AUTO GENERATE -->
+                <div class="form-group" style="margin-top: 24px;">
+                    <label class="checkbox-label {% if role != 'admin' %}disabled{% endif %}">
+                        <input type="checkbox" id="includeOwner"
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Include company owner in payroll generation</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label {% if role != 'admin' %}disabled{% endif %}">
+                        <input type="checkbox" id="autoGenerate" checked
+                               {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Auto-generate payroll at end of cutoff</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: QR & SCANNER ==================== -->
+    <div class="settings-panel" id="panel-qr">
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <div class="settings-icon green"><i class="fas fa-qrcode"></i></div>
+                <div>
+                    <h3>QR & Scanner Settings</h3>
+                    <p>Configure how employees scan attendance</p>
+                </div>
+            </div>
+            <div class="settings-card-body">
+
+                {% if role == 'manager' %}
+                <div class="view-only-banner">
+                    <i class="fas fa-eye"></i>
+                    <span><strong>View-only mode.</strong> Scanner settings can only be edited by the <strong>administrator</strong>.</span>
+                </div>
+                {% endif %}
+
+                <!-- ============================================== -->
+                <!-- ✅ BUSINESS CODE SECTION — NAKA-MOVE DITO NA -->
+                <!-- ============================================== -->
+                <div style="padding: 20px; background: linear-gradient(135deg, rgba(74,124,89,0.08), rgba(107,142,35,0.04)); border: 1.5px solid rgba(74,124,89,0.25); border-radius: 14px; margin-bottom: 28px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 4px 12px rgba(74,124,89,0.3);">
+                            <i class="fas fa-share-alt"></i>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                                Business Code
+                            </h4>
+                            <p style="margin: 2px 0 0; font-size: 12.5px; color: var(--text-secondary);">
+                                Share this code with new employees so they can self-register
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Code display + copy + regenerate -->
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="businessCode" readonly
+                               style="padding: 14px 18px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--bg-card); color: var(--text-primary); font-size: 18px; font-weight: 800; letter-spacing: 4px; flex: 1; min-width: 220px; font-family: 'Courier New', monospace; text-align: center; cursor: pointer;"
+                               value="{{ settings.business_code or '—' }}"
+                               onclick="copyBusinessCode()"
+                               title="Click to copy"
+                               {% if role != 'admin' %}disabled{% endif %}>
+
+                        <button type="button" class="btn btn-secondary" onclick="copyBusinessCode()" title="Copy code" style="min-height: 48px;">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+
+                        {% if role == 'admin' %}
+                        <button type="button" class="btn btn-warning" onclick="confirmRegenerateCode()" title="Generate new code" style="min-height: 48px;">
+                            <i class="fas fa-sync-alt"></i> Generate New
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <div style="margin-top: 12px; padding: 10px 14px; background: rgba(233,196,106,0.12); border-left: 3px solid var(--accent-yellow); border-radius: 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                        <i class="fas fa-lightbulb" style="color: #b8860b;"></i>
+                        <strong>Tip:</strong> Click the code above to copy it instantly.
+                        {% if role == 'admin' %}
+                        <br>
+                        <i class="fas fa-exclamation-triangle" style="color: var(--accent-red);"></i>
+                        Regenerating creates a new code. The old code becomes invalid immediately.
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- EXISTING SCANNER SETTINGS -->
+                <!-- ============================================== -->
+
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-sliders-h" style="color: var(--primary);"></i> Scanner Configuration
+                </h4>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>QR Code Format</label>
+                        <select id="qrFormat" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="standard">Standard (EMP:ID|NAME|ROLE)</option>
+                            <option value="simple">Simple (ID only)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Scanner Mode</label>
+                        <select id="scannerMode" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="camera">Camera Scan (locked)</option>
+                            <option value="file">File Upload (locked)</option>
+                            <option value="flexible">Flexible (user can switch)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Scan Cooldown (seconds)</label>
+                        <input type="number" id="scanCooldown" value="3" min="1" max="60" {% if role != 'admin' %}disabled{% endif %}>
+                        <small class="text-muted">Delay before next scan is accepted</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Sound Feedback</label>
+                        <select id="soundFeedback" {% if role != 'admin' %}disabled{% endif %}>
+                            <option value="enabled">Enabled (beep on scan)</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showEmployeePhoto" checked {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Show employee photo on successful scan</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="offlineMode" {% if role != 'admin' %}disabled{% endif %}>
+                        <span>Enable offline mode (sync when online)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ==================== TAB: MY ACCOUNT ==================== -->
+   <div class="settings-panel" id="panel-account">
+    <div class="settings-card">
+        <div class="settings-card-header">
+            <div class="settings-icon gold"><i class="fas fa-user-shield"></i></div>
+            <div>
+                <h3>My Account</h3>
+                <p>Manage your personal account and security</p>
+            </div>
+        </div>
+        <div class="settings-card-body">
+
+            <!-- Account Info -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" value="{{ session.username }}" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" value="{{ session.full_name }}" disabled>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Role</label>
+                    <input type="text" value="{{ session.role }}" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Employee Code</label>
+                    <input type="text" value="{{ session.get('employee_code', '—') }}" disabled>
+                </div>
+            </div>
+
+            <!-- Security Section -->
+            <div class="danger-zone">
+                <h4>🔐 Security</h4>
+                <p class="text-muted">Change the password for your account.</p>
+                <div class="danger-actions">
+                    <button class="btn btn-secondary" onclick="openChangePassword()">
+                        <i class="fas fa-key"></i> Change Password
+                    </button>
+                </div>
+            </div>
+
+           <!-- ============================================= -->
+<!-- ✅ MANAGER ACCESS CONTROL (admin only)        -->
+<!-- ============================================= -->
+{% if role == 'admin' %}
+<div class="danger-zone" style="border-top-color: rgba(233, 196, 106, 0.3); margin-top: 24px;">
+    <h4 style="display: flex; align-items: center; gap: 8px; color: var(--text-primary);">
+        <i class="fas fa-user-tie" style="color: var(--primary);"></i>
+        Manager Access Control
+    </h4>
+    <p class="text-muted" style="margin-bottom: 16px;">
+        Configure what managers can see and do in the Payroll page.
+        <strong>Admins are not affected</strong> — they always have full access.
+    </p>
+
+    <!-- Info banner -->
+    <div style="padding: 12px 16px; background: rgba(233, 196, 106, 0.08); border-left: 3px solid var(--accent-yellow); border-radius: 8px; margin-bottom: 20px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.6;">
+        <i class="fas fa-shield-alt" style="color: #b8860b; margin-right: 6px;"></i>
+        <strong style="color: var(--text-primary);">Privacy Notice:</strong>
+        Enabling salary visibility means managers can see how much each team member earns.
+        Only enable if required by your organization's policy.
+    </div>
+
+    <!-- Salary Visibility Section -->
+    <h5 style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; display: flex; align-items: center; gap: 6px;">
+        <i class="fas fa-eye" style="color: var(--primary);"></i>
+        Salary Visibility
+    </h5>
+
+    <label class="checkbox-label" style="margin-bottom: 16px;">
+        <input type="checkbox" id="managerCanViewSalary">
+        <span>
+            Allow managers to view employee salaries
+            <small style="display: block; margin-top: 4px; font-size: 11.5px; color: var(--text-muted); font-weight: 400;">
+                Shows gross pay, deductions, and net pay per employee in the team payroll list.
+            </small>
+        </span>
+    </label>
+
+    <!-- Payroll Actions Section -->
+    <h5 style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; display: flex; align-items: center; gap: 6px;">
+        <i class="fas fa-tasks" style="color: var(--primary);"></i>
+        Payroll Actions
+    </h5>
+
+    <label class="checkbox-label" style="margin-bottom: 10px;">
+        <input type="checkbox" id="managerCanViewPayslip">
+        <span>
+            Allow managers to view payslips
+            <small style="display: block; margin-top: 4px; font-size: 11.5px; color: var(--text-muted); font-weight: 400;">
+                Enables the "View" button on each payroll row to see the full payslip.
+            </small>
+        </span>
+    </label>
+
+    <label class="checkbox-label">
+        <input type="checkbox" id="managerCanPrintPayslip">
+        <span>
+            Allow managers to print payslips
+            <small style="display: block; margin-top: 4px; font-size: 11.5px; color: var(--text-muted); font-weight: 400;">
+                Enables the "Print" button on each payroll row.
+            </small>
+        </span>
+    </label>
+</div>
+{% endif %}
+    <!-- ==================== FLOATING SAVE BAR ==================== -->
+    {% if role in ['admin', 'manager'] %}
+
+    <div class="floating-save-bar" id="saveBar">
+        <div class="save-bar-content">
+            <i class="fas fa-info-circle"></i>
+            <span>You have unsaved changes</span>
+        </div>
+        <div class="save-bar-actions">
+            <button class="btn btn-secondary" onclick="discardChanges()">Discard</button>
+            <button class="btn btn-primary" onclick="saveAllSettings(event)">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ==================== CHANGE PASSWORD MODAL ==================== -->
+<div id="changePasswordModal" class="cp-modal-overlay">
+    <div class="cp-modal-box">
+        <div class="cp-modal-header">
+            <div class="cp-modal-title">
+                <div class="cp-modal-icon"><i class="fas fa-key"></i></div>
+                <div>
+                    <h3>Change Password</h3>
+                    <p>Update your account password</p>
+                </div>
+            </div>
+            <button class="cp-modal-close" onclick="closeChangePassword()">&times;</button>
+        </div>
+
+        <form onsubmit="submitChangePassword(event)">
+            <div class="form-group">
+                <label>Current Password</label>
+                <input type="password" id="cpCurrentPass" required placeholder="Enter current password" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" id="cpNewPass" required minlength="6" placeholder="Minimum 6 characters" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label>Confirm New Password</label>
+                <input type="password" id="cpConfirmPass" required minlength="6" placeholder="Re-enter new password" autocomplete="new-password">
+            </div>
+
+            <div id="cpError" class="cp-error" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <span></span>
+            </div>
+
+            <div class="cp-modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeChangePassword()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" id="cpSubmitBtn">
+                    <i class="fas fa-save"></i> Update Password
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<style>
+/* ==================== SETTINGS PAGE ==================== */
+.settings-page { padding: 8px 0 100px; position: relative; }
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+/* ==================== TABS ==================== */
+.settings-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 8px;
+    background: var(--bg-card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.settings-tabs::-webkit-scrollbar { display: none; }
+
+.settings-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.settings-tab:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+}
+.settings-tab.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light, #6b9e7a));
+    color: white;
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+}
+.settings-tab i { font-size: 13px; }
+
+/* ==================== PANELS ==================== */
+.settings-panel { display: none; animation: fadeIn 0.3s ease; }
+.settings-panel.active { display: block; }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==================== VIEW-ONLY MODE ==================== */
+.settings-panel.view-only .settings-card-header {
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(233,196,106,0.06));
+}
+.settings-panel.view-only .settings-card-header h3::after {
+    content: ' 👁️';
+    font-size: 14px;
+    opacity: 0.6;
+}
+
+/* ==================== VIEW-ONLY BANNER ==================== */
+.view-only-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(233,196,106,0.1), rgba(212,163,115,0.05));
+    border: 1px solid rgba(233,196,106,0.3);
+    border-left: 4px solid var(--accent-yellow);
+    border-radius: 12px;
+    margin-bottom: 22px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+.view-only-banner i {
+    color: #b8860b;
+    font-size: 16px;
+    margin-top: 1px;
+}
+.view-only-banner strong { color: var(--text-primary); }
+
+/* ==================== SETTINGS CARD ==================== */
+.settings-card {
+    background: var(--bg-card);
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(74, 124, 89, 0.06);
+    margin-bottom: 20px;
+}
+
+.settings-card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 26px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+.settings-card-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.settings-card-header p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.settings-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+.settings-icon.green { background: linear-gradient(135deg, #4a7c59, #3d6647); }
+.settings-icon.olive { background: linear-gradient(135deg, #6b8e23, #556b1d); }
+.settings-icon.gold { background: linear-gradient(135deg, #d4a373, #b8895a); }
+.settings-icon.terra { background: linear-gradient(135deg, #c45c4a, #a84a3a); }
+
+.settings-card-body { padding: 26px; }
+
+/* ==================== LOGO UPLOAD ==================== */
+.logo-upload-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.logo-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.logo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.logo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    text-align: center;
+}
+
+.logo-placeholder i {
+    font-size: 20px;
+    opacity: 0.5;
+}
+
+.logo-upload-controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.logo-upload-controls .file-upload-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.logo-upload-controls .file-upload-wrapper input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+}
+
+.logo-upload-controls .file-upload-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logo-upload-controls .file-upload-label:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+}
+
+/* ==================== FORM ELEMENTS ==================== */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.12);
+    background: var(--bg-card);
+}
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled {
+    opacity: 0.85;
+    cursor: not-allowed;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    -webkit-text-fill-color: var(--text-primary);
+}
+.form-group small {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ==================== SINGLE-ARROW DROPDOWN FIX ==================== */
+.settings-page select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a7c59' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 16px !important;
+    padding-right: 42px !important;
+}
+
+.settings-page select::-ms-expand { display: none !important; }
+.settings-page select:disabled {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a9a8a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+}
+
+[data-theme="dark"] .settings-page select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b9e7a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+}
+
+/* ==================== CHECKBOX LABEL ==================== */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-primary);
+    border: 1.5px solid transparent;
+    transition: all 0.2s ease;
+}
+.checkbox-label:hover:not(.disabled) {
+    border-color: var(--primary);
+    background: var(--bg-card);
+}
+.checkbox-label.disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+}
+.checkbox-label input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+}
+
+/* ==================== DANGER ZONE ==================== */
+.danger-zone {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+.danger-zone.danger {
+    border-top-color: rgba(196, 92, 74, 0.3);
+}
+.danger-zone h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+}
+.danger-zone.danger h4 { color: var(--accent-red); }
+.danger-zone .text-muted {
+    margin: 0 0 12px;
+    font-size: 13px;
+}
+.danger-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ==================== FLOATING SAVE BAR ==================== */
+.floating-save-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(200%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 14px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--primary);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(74, 124, 89, 0.25);
+    z-index: 999;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 380px;
+    max-width: 90vw;
+}
+.floating-save-bar.show {
+    transform: translateX(-50%) translateY(0);
+}
+.save-bar-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.save-bar-content i {
+    color: var(--accent-yellow);
+    font-size: 16px;
+}
+.save-bar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ==================== CHANGE PASSWORD MODAL ==================== */
+.cp-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 26, 15, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.cp-modal-overlay.active { display: flex; }
+
+.cp-modal-box {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 28px;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: cpScaleIn 0.3s ease;
+}
+
+@keyframes cpScaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.cp-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.cp-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.cp-modal-icon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #d4a373, #b8895a);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(212, 163, 115, 0.35);
+}
+
+.cp-modal-title h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.cp-modal-title p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.cp-modal-close {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.cp-modal-close:hover {
+    background: var(--accent-red);
+    color: white;
+    border-color: var(--accent-red);
+}
+
+.cp-error {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(196, 92, 74, 0.1);
+    border: 1px solid rgba(196, 92, 74, 0.25);
+    border-radius: 10px;
+    color: var(--accent-red);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+.cp-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+    .settings-card-body { padding: 20px; }
+    .logo-upload-section { flex-direction: column; align-items: stretch; }
+    .logo-preview { margin: 0 auto; }
+    .floating-save-bar {
+        left: 12px;
+        right: 12px;
+        transform: translateX(0) translateY(200%);
+        min-width: 0;
+    }
+    .floating-save-bar.show {
+        transform: translateX(0) translateY(0);
+    }
+    .save-bar-content { display: none; }
+}
+</style>
+
+
+<script>
+const USER_ROLE = "{{ role }}";
+const IS_admin = USER_ROLE === 'admin';
+const IS_manager = USER_ROLE === 'manager';
+const CAN_EDIT_SETTINGS = IS_admin;
+
+let activeSettingsTab = 'farm';
+let hasUnsavedChanges = false;
+let isInitialLoad = true;
+
+// =============================================
+// BUSINESS CODE & SHARING
+// =============================================
+function copyBusinessCode() {
+    const code = getBusinessCode();
+    if (!code) {
+        showToast('Business code not yet available', 'error');
+        return;
+    }
+
+    copyToClipboard(code).then(() => {
+        showToast('Business code copied!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
+}
+
+async function confirmRegenerateCode() {
+    const confirmed = confirm(
+        '⚠️ Are you sure you want to generate a new business code?\n\n' +
+        '• The current code will become INVALID immediately\n' +
+        '• Pending join requests using the old code will NOT be affected\n' +
+        '• You will need to share the new code with your employees\n\n' +
+        'Continue?'
+    );
+
+    if (!confirmed) return;
+
+    await regenerateBusinessCode();
+}
+
+async function regenerateBusinessCode() {
+    try {
+        const btns = document.querySelectorAll('button');
+        btns.forEach(b => b.disabled = true);
+
+        const res = await fetch('/api/settings/regenerate-business-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        btns.forEach(b => b.disabled = false);
+
+        if (data.success) {
+            document.getElementById('businessCode').value = data.new_code;
+
+            if (typeof refreshSharingPreviews === 'function') {
+                refreshSharingPreviews();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast('New code: ' + data.new_code, 'success');
+            } else {
+                alert('✅ New code generated!\n\n' + data.new_code);
+            }
+        } else {
+            alert('❌ ' + data.message);
+        }
+    } catch (e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+function getBusinessCode() {
+    const el = document.getElementById('businessCode');
+    if (!el) return '';
+    const val = (el.value || '').trim();
+    return val === '—' ? '' : val;
+}
+
+function getApplyUrl() {
+    const code = getBusinessCode();
+    if (!code) return '';
+
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/join?code=${encodeURIComponent(code)}`;
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+    }
+
+    return new Promise((resolve, reject) => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            ok ? resolve() : reject();
+        } catch (e) {
+            document.body.removeChild(ta);
+            reject(e);
+        }
+    });
+}
+
+// ==================== TAB SWITCHING ====================
+function switchSettingsTab(tab) {
+    activeSettingsTab = tab;
+    document.querySelectorAll('.settings-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.tab === tab)
+    );
+    document.querySelectorAll('.settings-panel').forEach(p =>
+        p.classList.toggle('active', p.id === `panel-${tab}`)
+    );
+}
+
+// ==================== LOAD SETTINGS FROM DB ====================
+async function loadSettings() {
+    try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+
+        if (!data.success || !data.data) {
+            isInitialLoad = false;
+            return;
+        }
+
+        const s = data.data;
+
+        const fieldMap = {
+            farmName: 'farm_name',
+            farmOwner: 'farm_owner',
+            farmEmail: 'farm_email',
+            farmPhone: 'farm_phone',
+            farmAddress: 'farm_address',
+            currency: 'currency',
+            timezone: 'timezone',
+            businessCode: 'business_code',
+            defaultTimeIn: 'default_time_in',
+            defaultTimeOut: 'default_time_out',
+            lunchBreak: 'lunch_break',
+            workingDays: 'working_days',
+            restDays: 'rest_days',
+            shiftType: 'shift_type',
+            gracePeriod: 'grace_period',
+            lateThreshold: 'late_threshold',
+            autoTimeout: 'auto_timeout',
+            endOfDay: 'end_of_day',
+            requirePhoto: 'require_photo',
+            blockDuplicate: 'block_duplicate',
+            allowManualEntry: 'allow_manual_entry',
+            payFrequency: 'pay_frequency',
+            salaryBasis: 'salary_basis',
+            payrollWorkingDays: 'payroll_working_days',
+            cutoffDay: 'cutoff_day',
+            includeOwner: 'include_owner',
+            autoGenerate: 'auto_generate',
+            qrFormat: 'qr_format',
+            scannerMode: 'scanner_mode',
+            scanCooldown: 'scan_cooldown',
+            soundFeedback: 'sound_feedback',
+            showEmployeePhoto: 'show_employee_photo',
+            offlineMode: 'offline_mode',
+            lateDeductionEnabled: 'late_deduction_enabled',
+            lateDeductionRate: 'late_deduction_rate',
+            absentDeductionEnabled: 'absent_deduction_enabled',
+            absentDeductionRate: 'absent_deduction_rate',
+            customDeductionEnabled: 'custom_deduction_enabled',
+            customDeductionLabel: 'custom_deduction_label',
+            customDeductionAmount: 'custom_deduction_amount',
+            bonusEnabled: 'bonus_enabled',
+            bonusAmount: 'bonus_amount',
+            allowanceEnabled: 'allowance_enabled',
+            allowanceAmount: 'allowance_amount',
+            overtimeEnabled: 'overtime_enabled',
+            overtimeRate: 'overtime_rate',
+            
+            // ✅ Manager Access Control
+            managerCanViewSalary: 'manager_can_view_salary',
+            managerCanViewPayslip: 'manager_can_view_payslip',
+            managerCanPrintPayslip: 'manager_can_print_payslip'
+        };
+
+        Object.entries(fieldMap).forEach(([inputId, dbField]) => {
+            const el = document.getElementById(inputId);
+            if (!el || s[dbField] === null || s[dbField] === undefined) return;
+
+            if (el.type === 'checkbox') {
+                el.checked = Boolean(s[dbField]);
+            } else {
+                el.value = s[dbField];
+            }
+        });
+
+        const codeEl = document.getElementById('businessCode');
+        if (codeEl && s.business_code) {
+            codeEl.value = s.business_code;
+        }
+
+        // ✅ NEW: I-trigger ang dependency logic PAGKATAPOS ma-load ang settings
+        if (typeof applyManagerAccessDependencies === 'function') {
+            applyManagerAccessDependencies();
+        }
+
+    } catch (e) {
+        console.error('Load settings error:', e);
+    } finally {
+        isInitialLoad = false;
+    }
+}
+// ==================== TRACK CHANGES ====================
+document.addEventListener('DOMContentLoaded', async () => {
+    switchSettingsTab(activeSettingsTab);
+    await loadSettings();
+
+    const logoInput = document.getElementById('logoInput');
+    if (logoInput) {
+        logoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('Logo too large. Max 2MB.', 'error');
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = document.getElementById('logoImg');
+                const placeholder = document.getElementById('logoPlaceholder');
+                if (img) {
+                    img.src = ev.target.result;
+                    img.style.display = 'block';
+                }
+                if (placeholder) placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+
+            hasUnsavedChanges = true;
+            document.getElementById('saveBar')?.classList.add('show');
+        });
+    }
+
+    if (!CAN_EDIT_SETTINGS) return;
+
+    const inputs = document.querySelectorAll(
+        '.settings-page input:not(:disabled), .settings-page select:not(:disabled), .settings-page textarea:not(:disabled)'
+    );
+    inputs.forEach(input => {
+        input.addEventListener('change', markDirty);
+        input.addEventListener('input', markDirty);
+    });
+});
+
+function markDirty() {
+    if (isInitialLoad || !CAN_EDIT_SETTINGS) return;
+    hasUnsavedChanges = true;
+    document.getElementById('saveBar')?.classList.add('show');
+}
+
+// ==================== COLLECT SETTINGS FROM FORM ====================
+function collectAllSettings() {
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    };
+    const getChecked = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.checked : false;
+    };
+
+    const data = {
+        qr_format: getVal('qrFormat') || 'standard',
+        scanner_mode: getVal('scannerMode') || 'camera',
+        scan_cooldown: getVal('scanCooldown') || 3,
+        sound_feedback: getVal('soundFeedback') || 'enabled',
+        show_employee_photo: getChecked('showEmployeePhoto'),
+        offline_mode: getChecked('offlineMode')
+    };
+
+    if (IS_admin) {
+        Object.assign(data, {
+            farm_name: getVal('farmName') || '',
+            farm_owner: getVal('farmOwner') || '',
+            farm_email: getVal('farmEmail') || '',
+            farm_phone: getVal('farmPhone') || '',
+            farm_address: getVal('farmAddress') || '',
+            currency: getVal('currency') || 'PHP',
+            timezone: getVal('timezone') || 'Asia/Manila',
+            default_time_in: getVal('defaultTimeIn') || '08:00',
+            default_time_out: getVal('defaultTimeOut') || '17:00',
+            lunch_break: getVal('lunchBreak') || 60,
+            working_days: getVal('workingDays') || 22,
+            rest_days: getVal('restDays') || 'sat-sun',
+            shift_type: getVal('shiftType') || 'day',
+            grace_period: getVal('gracePeriod') || 5,
+            late_threshold: getVal('lateThreshold') || 5,
+            auto_timeout: getVal('autoTimeout') || 'disabled',
+            end_of_day: getVal('endOfDay') || '23:59',
+            require_photo: getChecked('requirePhoto'),
+            block_duplicate: getChecked('blockDuplicate'),
+            allow_manual_entry: getChecked('allowManualEntry'),
+            pay_frequency: getVal('payFrequency') || 'semi-monthly',
+            salary_basis: getVal('salaryBasis') || 'monthly',
+            payroll_working_days: getVal('payrollWorkingDays') || 22,
+            cutoff_day: getVal('cutoffDay') || '15-30',
+            include_owner: getChecked('includeOwner'),
+            auto_generate: getChecked('autoGenerate'),
+            late_deduction_enabled: getChecked('lateDeductionEnabled'),
+            late_deduction_rate: parseFloat(getVal('lateDeductionRate')) || 0,
+            absent_deduction_enabled: getChecked('absentDeductionEnabled'),
+            absent_deduction_rate: parseFloat(getVal('absentDeductionRate')) || 0,
+            bonus_enabled: getChecked('bonusEnabled'),
+            bonus_amount: parseFloat(getVal('bonusAmount')) || 0,
+            allowance_enabled: getChecked('allowanceEnabled'),
+            allowance_amount: parseFloat(getVal('allowanceAmount')) || 0,
+            overtime_enabled: getChecked('overtimeEnabled'),
+            overtime_rate: parseFloat(getVal('overtimeRate')) || 1.25,
+            custom_deduction_enabled: getChecked('customDeductionEnabled'),
+            custom_deduction_label: getVal('customDeductionLabel') || '',
+            custom_deduction_amount: parseFloat(getVal('customDeductionAmount')) || 0,
+
+            // ✅ Manager Access Control (3 settings)
+            manager_can_view_salary: getChecked('managerCanViewSalary'),
+            manager_can_view_payslip: getChecked('managerCanViewPayslip'),
+            manager_can_print_payslip: getChecked('managerCanPrintPayslip')
+        });
+    }
+
+    // ✅ DEBUG: Log sa console
+    console.log('📤 collectAllSettings:', data);
+    console.log('   manager_can_view_salary:', data.manager_can_view_salary);
+    console.log('   manager_can_view_payslip:', data.manager_can_view_payslip);
+    console.log('   manager_can_print_payslip:', data.manager_can_print_payslip);
+
+    return data;
+}
+// ==================== SAVE ALL ====================
+async function saveAllSettings(event) {
+    if (!CAN_EDIT_SETTINGS) return;
+
+    const btn = event?.target?.closest('button') || event?.target;
+    const originalHTML = btn?.innerHTML;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
+    try {
+        const settings = collectAllSettings();
+        const logoInput = document.getElementById('logoInput');
+        const hasLogo = logoInput && logoInput.files && logoInput.files[0];
+
+        let res;
+
+        if (hasLogo && IS_admin) {
+            const fd = new FormData();
+            Object.entries(settings).forEach(([key, val]) => {
+                fd.append(key, val);
+            });
+            fd.append('logo', logoInput.files[0]);
+
+            res = await fetch('/api/settings', {
+                method: 'POST',
+                body: fd
+            });
+        } else {
+            res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(settings)
+            });
+        }
+
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Save failed');
+
+        hasUnsavedChanges = false;
+        document.getElementById('saveBar')?.classList.remove('show');
+        showToast('Settings saved successfully!', 'success');
+
+        if (hasLogo) {
+            setTimeout(() => location.reload(), 1000);
+        }
+
+    } catch (e) {
+        console.error('Save error:', e);
+        showToast('Failed to save: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    }
+}
+
+// ==================== DISCARD ====================
+async function discardChanges() {
+    if (!confirm('Discard all unsaved changes?')) return;
+    hasUnsavedChanges = false;
+    document.getElementById('saveBar')?.classList.remove('show');
+    await loadSettings();
+    const logoInput = document.getElementById('logoInput');
+    if (logoInput) logoInput.value = '';
+    showToast('Changes discarded', 'success');
+    setTimeout(() => location.reload(), 500);
+}
+
+// ==================== CHANGE PASSWORD MODAL ====================
+function openChangePassword() {
+    document.getElementById('changePasswordModal').classList.add('active');
+    document.getElementById('cpCurrentPass').value = '';
+    document.getElementById('cpNewPass').value = '';
+    document.getElementById('cpConfirmPass').value = '';
+    document.getElementById('cpError').style.display = 'none';
+}
+
+function closeChangePassword() {
+    document.getElementById('changePasswordModal').classList.remove('active');
+}
+
+async function submitChangePassword(e) {
+    e.preventDefault();
+
+    const currentPass = document.getElementById('cpCurrentPass').value;
+    const newPass = document.getElementById('cpNewPass').value;
+    const confirmPass = document.getElementById('cpConfirmPass').value;
+    const errorBox = document.getElementById('cpError');
+    const btn = document.getElementById('cpSubmitBtn');
+    const originalHTML = btn.innerHTML;
+
+    if (newPass.length < 6) {
+        errorBox.querySelector('span').textContent = 'New password must be at least 6 characters.';
+        errorBox.style.display = 'flex';
+        return;
+    }
+
+    if (newPass !== confirmPass) {
+        errorBox.querySelector('span').textContent = 'New passwords do not match.';
+        errorBox.style.display = 'flex';
+        return;
+    }
+
+    if (newPass === currentPass) {
+        errorBox.querySelector('span').textContent = 'New password must be different from current password.';
+        errorBox.style.display = 'flex';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+    try {
+        const res = await fetch('/api/change-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                current_password: currentPass,
+                new_password: newPass
+            })
+        });
+
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+
+        closeChangePassword();
+        showToast('Password updated successfully!', 'success');
+
+    } catch (err) {
+        errorBox.querySelector('span').textContent = err.message;
+        errorBox.style.display = 'flex';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }
+}
+
+// ==================== RESET SETTINGS ====================
+function resetSettings() {
+    if (!IS_admin) return;
+    if (!confirm('⚠️ Reset ALL settings to default?\n\nThis cannot be undone.')) return;
+    showToast('Settings reset to default', 'success');
+    setTimeout(() => location.reload(), 1000);
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type = 'success') {
+    const t = document.createElement('div');
+    t.style.cssText = `
+        position: fixed; top: 24px; right: 24px;
+        padding: 14px 20px; border-radius: 12px;
+        color: white; font-size: 14px; font-weight: 600;
+        z-index: 9999;
+        background: ${type === 'success' ? 'linear-gradient(135deg,#4a7c59,#6b8e23)' : 'linear-gradient(135deg,#c45c4a,#a84a3a)'};
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: flex; align-items: center; gap: 10px;
+        animation: slideIn 0.3s ease;
+    `;
+    t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${msg}`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+// =============================================
+// ✅ MANAGER ACCESS — Dependency Logic
+// =============================================
+// =============================================
+// ✅ MANAGER ACCESS — Dependency Logic
+// Named function para matawag mula sa loadSettings()
+// =============================================
+function applyManagerAccessDependencies() {
+    const viewSalary = document.getElementById('managerCanViewSalary');
+    if (!viewSalary) return;
+
+    const dependents = [
+        document.getElementById('managerCanViewPayslip'),
+        document.getElementById('managerCanPrintPayslip')
+    ];
+
+    const canView = viewSalary.checked;
+
+    dependents.forEach(el => {
+        if (!el) return;
+        const label = el.closest('.checkbox-label');
+
+        if (!canView) {
+            el.disabled = true;
+            el.checked = false;
+            if (label) {
+                label.style.opacity = '0.5';
+                label.style.cursor = 'not-allowed';
+                label.title = 'Enable "View employee salaries" first to unlock this option.';
+            }
+        } else {
+            el.disabled = false;
+            if (label) {
+                label.style.opacity = '1';
+                label.style.cursor = 'pointer';
+                label.title = '';
+            }
+        }
+    });
+}
+
+// ✅ Setup event listener PAGKATAPOS ng DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    const viewSalary = document.getElementById('managerCanViewSalary');
+    if (viewSalary) {
+        viewSalary.addEventListener('change', applyManagerAccessDependencies);
+    }
+
+    // Initial call (sa case na walang loadSettings, kung admin lang)
+    // Pero yung loadSettings() ang tatawag ulit after load
+    applyManagerAccessDependencies();
+});
+</script>
+
+<style>
+@keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+</style>
+{% endblock %}
